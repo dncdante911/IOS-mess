@@ -55,25 +55,138 @@ export interface Ed25519KeyPair {
 
 // ─── Кодировки ───────────────────────────────────────────────────────────────
 //
-// Buffer в React Native приходит из Metro-полифилла и уже используется
-// существующим кодом проекта — берём тот же путь,
-// чтобы не заводить второй способ кодирования в одном проекте.
-// Формат — стандартный base64 С padding, ровно как btoa() в Windows-клиенте.
+// Всё реализовано вручную и НЕ опирается ни на одну глобальную сущность.
+//
+// Почему не Buffer: его в React Native нет. Hermes не даёт глобальный Buffer,
+// Metro его не полифилит, а пакет `buffer` в зависимостях проекта отсутствует
+// (лежит только транзитивно и в бандл не попадает). Metro при этом собирает
+// такой код молча — `Buffer` для него просто свободный идентификатор, — и
+// падение случилось бы уже на устройстве, при первой же попытке отправить
+// сообщение.
+//
+// Почему не TextEncoder/TextDecoder: их наличие в Hermes зависит от версии RN,
+// и полагаться на это в криптографическом коде нельзя.
+//
+// Формат base64 — стандартный, С padding: побайтово совпадает с btoa() в
+// Windows-клиенте и с Base64.NO_WRAP в Android. Любое расхождение здесь
+// означало бы, что платформы перестают читать сообщения друг друга.
+
+const B64_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+
+/** charCode → 6-битное значение. Строится один раз при загрузке модуля. */
+const B64_LOOKUP: Int16Array = (() => {
+  const table = new Int16Array(128).fill(-1);
+  for (let i = 0; i < B64_ALPHABET.length; i++) {
+    table[B64_ALPHABET.charCodeAt(i)] = i;
+  }
+  return table;
+})();
 
 export function b64Encode(bytes: Uint8Array): string {
-  return Buffer.from(bytes).toString('base64');
+  let out = '';
+  for (let i = 0; i < bytes.length; i += 3) {
+    const b0 = bytes[i];
+    const hasB1 = i + 1 < bytes.length;
+    const hasB2 = i + 2 < bytes.length;
+    const b1 = hasB1 ? bytes[i + 1] : 0;
+    const b2 = hasB2 ? bytes[i + 2] : 0;
+
+    out += B64_ALPHABET[b0 >> 2];
+    out += B64_ALPHABET[((b0 & 0x03) << 4) | (b1 >> 4)];
+    out += hasB1 ? B64_ALPHABET[((b1 & 0x0f) << 2) | (b2 >> 6)] : '=';
+    out += hasB2 ? B64_ALPHABET[b2 & 0x3f] : '=';
+  }
+  return out;
 }
 
 export function b64Decode(s: string): Uint8Array {
-  return new Uint8Array(Buffer.from(s, 'base64'));
+  // Отбрасываем padding, переводы строк и прочий мусор: на входе бывает
+  // base64 из чужих реализаций, где перенос строк допустим.
+  let clean = '';
+  for (let i = 0; i < s.length; i++) {
+    const code = s.charCodeAt(i);
+    if (code < 128 && B64_LOOKUP[code] >= 0) clean += s[i];
+  }
+
+  const out = new Uint8Array(Math.floor((clean.length * 3) / 4));
+  let p = 0;
+  for (let i = 0; i < clean.length; i += 4) {
+    const c0 = B64_LOOKUP[clean.charCodeAt(i)];
+    const c1 = i + 1 < clean.length ? B64_LOOKUP[clean.charCodeAt(i + 1)] : -1;
+    const c2 = i + 2 < clean.length ? B64_LOOKUP[clean.charCodeAt(i + 2)] : -1;
+    const c3 = i + 3 < clean.length ? B64_LOOKUP[clean.charCodeAt(i + 3)] : -1;
+
+    if (c1 >= 0) out[p++] = (c0 << 2) | (c1 >> 4);
+    if (c2 >= 0) out[p++] = ((c1 & 0x0f) << 4) | (c2 >> 2);
+    if (c3 >= 0) out[p++] = ((c2 & 0x03) << 6) | c3;
+  }
+  return p === out.length ? out : out.slice(0, p);
 }
 
+/** UTF-8 кодирование с корректной обработкой суррогатных пар (эмодзи). */
 export function utf8Bytes(s: string): Uint8Array {
-  return new Uint8Array(Buffer.from(s, 'utf8'));
+  const out: number[] = [];
+  for (let i = 0; i < s.length; i++) {
+    let cp = s.charCodeAt(i);
+
+    // Суррогатная пара → один кодпоинт (эмодзи и прочее вне BMP).
+    if (cp >= 0xd800 && cp <= 0xdbff && i + 1 < s.length) {
+      const low = s.charCodeAt(i + 1);
+      if (low >= 0xdc00 && low <= 0xdfff) {
+        cp = 0x10000 + ((cp - 0xd800) << 10) + (low - 0xdc00);
+        i++;
+      }
+    }
+
+    if (cp < 0x80) {
+      out.push(cp);
+    } else if (cp < 0x800) {
+      out.push(0xc0 | (cp >> 6), 0x80 | (cp & 0x3f));
+    } else if (cp < 0x10000) {
+      out.push(0xe0 | (cp >> 12), 0x80 | ((cp >> 6) & 0x3f), 0x80 | (cp & 0x3f));
+    } else {
+      out.push(
+        0xf0 | (cp >> 18),
+        0x80 | ((cp >> 12) & 0x3f),
+        0x80 | ((cp >> 6) & 0x3f),
+        0x80 | (cp & 0x3f),
+      );
+    }
+  }
+  return new Uint8Array(out);
 }
 
+/** UTF-8 декодирование. Обратная операция к utf8Bytes. */
 export function utf8String(bytes: Uint8Array): string {
-  return Buffer.from(bytes).toString('utf8');
+  let out = '';
+  let i = 0;
+  while (i < bytes.length) {
+    const b0 = bytes[i++];
+    let cp: number;
+
+    if (b0 < 0x80) {
+      cp = b0;
+    } else if ((b0 & 0xe0) === 0xc0) {
+      cp = ((b0 & 0x1f) << 6) | (bytes[i++] & 0x3f);
+    } else if ((b0 & 0xf0) === 0xe0) {
+      cp = ((b0 & 0x0f) << 12) | ((bytes[i++] & 0x3f) << 6) | (bytes[i++] & 0x3f);
+    } else {
+      cp =
+        ((b0 & 0x07) << 18) |
+        ((bytes[i++] & 0x3f) << 12) |
+        ((bytes[i++] & 0x3f) << 6) |
+        (bytes[i++] & 0x3f);
+    }
+
+    if (cp > 0xffff) {
+      // Обратно в суррогатную пару — иначе fromCharCode обрежет кодпоинт.
+      cp -= 0x10000;
+      out += String.fromCharCode(0xd800 + (cp >> 10), 0xdc00 + (cp & 0x3ff));
+    } else {
+      out += String.fromCharCode(cp);
+    }
+  }
+  return out;
 }
 
 // ─── Случайность ─────────────────────────────────────────────────────────────

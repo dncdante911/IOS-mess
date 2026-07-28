@@ -110,15 +110,44 @@ jobs:
               "$@"
           }
 
-          # xcpretty делает лог читаемым, но это gem, которого на образе может
-          # не оказаться. Через пайп он бы утащил за собой всю сборку, поэтому
-          # используем его только если он реально есть.
+          # Полный лог всегда пишется в файл, даже когда на экран идёт
+          # причёсанный xcpretty. Это принципиально: xcpretty СКРЫВАЕТ вывод
+          # скриптовых фаз, а «Bundle React Native code and images» — это
+          # запуск Metro, и настоящая причина падения (нерезолвнутый модуль,
+          # синтаксическая ошибка, нехватка памяти) печатается именно там.
+          # Без сырого лога видны только предупреждения компилятора.
+          RAW_LOG=../xcodebuild-raw.log
+
           if command -v xcpretty >/dev/null 2>&1; then
-            build | xcpretty
+            build 2>&1 | tee "$RAW_LOG" | xcpretty || BUILD_FAILED=1
           else
             echo "xcpretty не найден — собираем с полным логом"
-            build
+            build 2>&1 | tee "$RAW_LOG" || BUILD_FAILED=1
           fi
+
+          if [ -n "$BUILD_FAILED" ]; then
+            echo "::group::❌ Ошибки Metro и скриптовых фаз"
+            grep -nE "Unable to resolve|Cannot find module|SyntaxError|error:|Error:|nonzero exit code|Command PhaseScriptExecution failed" "$RAW_LOG" \
+              | grep -viE "nullability|duplicate librar|will be run during every build" \
+              | tail -60
+            echo "::endgroup::"
+
+            echo "::group::Последние 250 строк полного лога"
+            tail -250 "$RAW_LOG"
+            echo "::endgroup::"
+            exit 1
+          fi
+
+      # Сырой лог выгружается всегда — и при успехе, и при падении: разбирать
+      # 13 000 строк удобнее в файле, чем в веб-интерфейсе Actions.
+      - name: Выгрузить лог сборки
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xcodebuild-log
+          path: xcodebuild-raw.log
+          retention-days: 7
+          if-no-files-found: ignore
 
       # .ipa — это обычный zip с папкой Payload внутри. xcodebuild archive +
       # exportArchive здесь не подходят: экспорт требует подписи, а нам нужен
