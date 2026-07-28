@@ -127,9 +127,13 @@ jobs:
 
           if [ -n "$BUILD_FAILED" ]; then
             echo "::group::❌ Ошибки Metro и скриптовых фаз"
-            grep -nE "Unable to resolve|Cannot find module|SyntaxError|error:|Error:|nonzero exit code|Command PhaseScriptExecution failed" "$RAW_LOG" \
-              | grep -viE "nullability|duplicate librar|will be run during every build" \
-              | tail -60
+            # Шаблон намеренно узкий. Первая версия ловила "error:" где угодно
+            # и вытаскивала сотни строк вида `didCompleteWithError:` из
+            # заголовков Objective-C, из-за чего настоящая ошибка (две строки
+            # про expo-asset) утонула в шуме.
+            grep -nE "Unable to resolve|Cannot find module|cannot be found|SyntaxError|^Error:|error: |nonzero exit code|Command PhaseScriptExecution failed" "$RAW_LOG" \
+              | grep -viE "nullability|duplicate librar|will be run during every build|WithError:|\.h:[0-9]|\.m:[0-9]|\.mm:[0-9]" \
+              | tail -40
             echo "::endgroup::"
 
             echo "::group::Последние 250 строк полного лога"
