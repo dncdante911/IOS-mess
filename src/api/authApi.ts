@@ -58,13 +58,25 @@ interface NodeAuthFlat {
 // HELPERS
 // ─────────────────────────────────────────────────────────────
 
-/** Build URLSearchParams body (form-urlencoded) */
-function form(fields: Record<string, string | number | undefined>): URLSearchParams {
-  const p = new URLSearchParams();
+/**
+ * Готовит тело запроса: обычный объект без undefined-полей.
+ *
+ * Раньше возвращал URLSearchParams — и это ломало вход. В React Native это
+ * урезанный полифилл с внутренним массивом `_searchParams`, а `transformRequest`
+ * в apiClient обходит тело через Object.entries(). В результате на сервер
+ * уезжало одно поле `_searchParams=...`, а `username` и `password` терялись.
+ * Ветка «нет учётных данных» в routes/auth.js ничего не логирует, поэтому в
+ * pm2 стояла тишина и казалось, будто запрос вообще не доходит.
+ *
+ * Само кодирование делает toFormEncoded() в apiClient — там же и корректный
+ * percent-encoding, которого полифилл RN не выполняет.
+ */
+function form(fields: Record<string, string | number | undefined>): Record<string, string> {
+  const out: Record<string, string> = {};
   for (const [k, v] of Object.entries(fields)) {
-    if (v !== undefined) p.append(k, String(v));
+    if (v !== undefined) out[k] = String(v);
   }
-  return p;
+  return out;
 }
 
 const FORM_HEADERS = { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } };
@@ -213,8 +225,7 @@ export async function verifyLoginCode(
 ): Promise<Extract<LoginResult, { type: 'session' }>> {
   const res = await nodeApi.post<NodeAuthFlat>(
     'api/node/auth/verify-login-code',
-    form({ verification_id: verificationId, code, device_type: 'phone' }),
-    FORM_HEADERS,
+    { verification_id: verificationId, code, device_type: 'phone' },
   );
 
   const body = res.data;
@@ -240,8 +251,7 @@ export async function resendLoginVerificationEmail(
 ): Promise<{ ok: boolean; emailMasked: string; message: string }> {
   const res = await nodeApi.post<NodeAuthFlat>(
     'api/node/auth/login-verification-resend',
-    form({ verification_id: verificationId }),
-    FORM_HEADERS,
+    { verification_id: verificationId },
   );
 
   const body = res.data;
@@ -267,8 +277,7 @@ export async function register(
 ): Promise<RegisterResult> {
   const res = await nodeApi.post<NodeAuthFlat>(
     'api/node/auth/register',
-    form({ username, email, password, confirm_password: password, gender, device_type: 'phone', invite_code: inviteCode }),
-    FORM_HEADERS,
+    { username, email, password, confirm_password: password, gender, device_type: 'phone', invite_code: inviteCode },
   );
 
   const body = res.data;
@@ -307,8 +316,7 @@ export async function sendVerificationCode(
 ): Promise<void> {
   const res = await nodeApi.post<{ data?: NodeSendCodeResponseData; error?: string; message?: string }>(
     'api/node/auth/send-code',
-    form({ verification_type: verificationType, contact_info: contactInfo, username }),
-    FORM_HEADERS,
+    { verification_type: verificationType, contact_info: contactInfo, username },
   );
 
   const body = res.data;
@@ -327,8 +335,7 @@ export async function verifyCode(
 ): Promise<VerifyResult> {
   const res = await nodeApi.post<NodeAuthFlat>(
     'api/node/auth/verify-code',
-    form({ verification_type: verificationType, contact_info: contactInfo, code }),
-    FORM_HEADERS,
+    { verification_type: verificationType, contact_info: contactInfo, code },
   );
 
   const body = res.data;
@@ -353,8 +360,7 @@ export async function verifyCode(
 export async function requestPasswordReset(email: string): Promise<void> {
   const res = await nodeApi.post<{ data?: NodePasswordResetRequestData; error?: string; message?: string }>(
     'api/node/auth/request-password-reset',
-    form({ email }),
-    FORM_HEADERS,
+    { email },
   );
 
   const body = res.data;
@@ -369,8 +375,7 @@ export async function requestPasswordReset(email: string): Promise<void> {
 export async function resetPassword(email: string, code: string, newPassword: string): Promise<void> {
   const res = await nodeApi.post<{ data?: NodePasswordResetData; error?: string; message?: string }>(
     'api/node/auth/reset-password',
-    form({ email, code, new_password: newPassword }),
-    FORM_HEADERS,
+    { email, code, new_password: newPassword },
   );
 
   const body = res.data;
@@ -388,8 +393,7 @@ export async function resetPassword(email: string, code: string, newPassword: st
 export async function refreshTokens(refreshToken: string): Promise<TokenRefreshResult> {
   const res = await nodeApi.post<NodeAuthFlat>(
     'api/node/auth/refresh',
-    form({ refresh_token: refreshToken }),
-    FORM_HEADERS,
+    { refresh_token: refreshToken },
   );
 
   const body = res.data;

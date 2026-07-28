@@ -17,12 +17,13 @@ import type { DeviceBundle, E2EENodeApi } from '../crypto/e2ee/e2eeService';
 
 const FORM_HEADERS = { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } };
 
-function form(fields: Record<string, string | number | undefined>): URLSearchParams {
-  const p = new URLSearchParams();
+/** Обычный объект, а НЕ URLSearchParams — см. пояснение в api/authApi.ts:form(). */
+function form(fields: Record<string, string | number | undefined>): Record<string, string> {
+  const out: Record<string, string> = {};
   for (const [k, v] of Object.entries(fields)) {
-    if (v !== undefined) p.append(k, String(v));
+    if (v !== undefined) out[k] = String(v);
   }
-  return p;
+  return out;
 }
 
 interface RegisterResponse {

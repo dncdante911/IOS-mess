@@ -257,14 +257,44 @@ function buildPhpResponseInterceptor(instance: AxiosInstance) {
 
 const TIMEOUT_MS = (CONNECT_TIMEOUT_SECONDS + READ_TIMEOUT_SECONDS) * 1000;
 
-/** Encode a plain object as application/x-www-form-urlencoded (mirrors Android @FormUrlEncoded) */
+/**
+ * Кодирует тело как application/x-www-form-urlencoded (аналог @FormUrlEncoded
+ * в Retrofit на Android).
+ *
+ * ⚠️ Здесь СОЗНАТЕЛЬНО не используется URLSearchParams. В React Native это не
+ * стандартный класс, а урезанный полифилл, и он ломает запросы двумя способами:
+ *
+ *   1. Хранит пары во внутреннем массиве `_searchParams`, поэтому
+ *      Object.entries() отдаёт не поля формы, а сам этот массив. Тело
+ *      превращалось в `_searchParams=username%2C...`, и сервер не видел ни
+ *      username, ни password — вход не проходил.
+ *   2. Его toString() НЕ выполняет percent-encoding: пары просто склеиваются
+ *      через '=' и '&'. Пароль или текст сообщения с символом '&' разорвал бы
+ *      тело на лишние поля.
+ *
+ * Поэтому кодируем вручную через encodeURIComponent — предсказуемо и без
+ * зависимости от реализации в конкретной версии RN.
+ */
 function toFormEncoded(data: unknown): string | unknown {
   if (!data || typeof data !== 'object' || data instanceof FormData) return data;
-  const params = new URLSearchParams();
-  for (const [k, v] of Object.entries(data as Record<string, unknown>)) {
-    if (v !== undefined && v !== null) params.append(k, String(v));
-  }
-  return params.toString();
+  if (typeof data === 'string') return data;
+
+  // Тело уже собрано как URLSearchParams (устаревший путь) — разбираем его
+  // через итератор, а не через Object.entries.
+  const entries: Array<[string, unknown]> =
+    typeof (data as URLSearchParams).forEach === 'function' &&
+    typeof (data as URLSearchParams).append === 'function'
+      ? (() => {
+          const acc: Array<[string, unknown]> = [];
+          (data as URLSearchParams).forEach((v, k) => acc.push([k, v]));
+          return acc;
+        })()
+      : Object.entries(data as Record<string, unknown>);
+
+  return entries
+    .filter(([, v]) => v !== undefined && v !== null)
+    .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
+    .join('&');
 }
 
 function createNodeInstance(): AxiosInstance {
