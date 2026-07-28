@@ -1,0 +1,102 @@
+name: iOS unsigned IPA
+
+# Собирает НЕПОДПИСАННЫЙ .ipa на macOS-раннере GitHub.
+#
+# Почему неподписанный: подпись требует Apple Developer Program (99 $/год).
+# Пока подписки нет, .ipa подписывается уже на твоей стороне — Sideloadly или
+# AltStore делают это на Windows бесплатным Apple ID. Схема рабочая, просто
+# профиль живёт 7 дней и раз в неделю нужен повторный «refresh».
+#
+# Запуск: вкладка Actions → «iOS unsigned IPA» → Run workflow.
+# Результат: артефакт worldmates-ios-unsigned.ipa, скачивается со страницы прогона.
+
+on:
+  workflow_dispatch:      # запуск руками — по умолчанию, чтобы не жечь минуты
+  push:
+    branches: [ main ]
+    paths:
+      - 'src/**'
+      - 'package.json'
+      - 'app.json'
+      - '.github/workflows/ios-build.yml'
+
+jobs:
+  build:
+    # macOS-раннер обязателен: тулчейн Apple (clang для arm64-apple-ios, actool,
+    # xcodebuild) существует только под macOS. На ubuntu собрать iOS нельзя.
+    #
+    # ⚠️ Минуты macOS тарифицируются с множителем x10. Для приватного репозитория
+    # 2000 бесплатных минут в месяц превращаются в ~200 минут сборок iOS —
+    # примерно 8–12 прогонов. Для публичного репозитория — бесплатно без лимита.
+    runs-on: macos-14
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Установка зависимостей
+        run: npm install --legacy-peer-deps
+
+      # Генерирует папку ios/ из app.json. В репозитории её нет и быть не должно:
+      # это производный артефакт, который Expo пересоздаёт под текущие плагины.
+      - name: Expo prebuild
+        run: npx expo prebuild --platform ios --no-install --clean
+
+      - name: CocoaPods
+        working-directory: ios
+        run: pod install --repo-update
+
+      # Имя схемы Xcode Expo делает из app.json → expo.name, убирая пробелы:
+      # "WorldMates Messenger" → WorldMatesMessenger. Определяем автоматически,
+      # чтобы переименование приложения не ломало сборку.
+      - name: Определить схему
+        id: scheme
+        working-directory: ios
+        run: |
+          SCHEME=$(ls -1 *.xcworkspace | head -1 | sed 's/\.xcworkspace$//')
+          echo "name=$SCHEME" >> "$GITHUB_OUTPUT"
+          echo "Схема: $SCHEME"
+
+      # Ключевая часть: CODE_SIGNING_ALLOWED=NO отключает подпись целиком.
+      # Без этого xcodebuild потребует сертификат и упадёт.
+      - name: Сборка без подписи
+        working-directory: ios
+        run: |
+          xcodebuild \
+            -workspace "${{ steps.scheme.outputs.name }}.xcworkspace" \
+            -scheme "${{ steps.scheme.outputs.name }}" \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath build \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            ONLY_ACTIVE_ARCH=NO \
+            | xcpretty && exit ${PIPESTATUS[0]}
+
+      # .ipa — это обычный zip с папкой Payload внутри. xcodebuild archive +
+      # exportArchive здесь не подходят: экспорт требует подписи, а нам нужен
+      # именно неподписанный бинарь.
+      - name: Упаковать в .ipa
+        working-directory: ios
+        run: |
+          APP_PATH=$(find build/Build/Products/Release-iphoneos -maxdepth 1 -name "*.app" | head -1)
+          if [ -z "$APP_PATH" ]; then echo "❌ .app не найден"; exit 1; fi
+          mkdir -p Payload
+          cp -R "$APP_PATH" Payload/
+          zip -qr worldmates-ios-unsigned.ipa Payload
+          ls -lh worldmates-ios-unsigned.ipa
+
+      - name: Выгрузить артефакт
+        uses: actions/upload-artifact@v4
+        with:
+          name: worldmates-ios-unsigned
+          path: ios/worldmates-ios-unsigned.ipa
+          retention-days: 30

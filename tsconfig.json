@@ -1,0 +1,16 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    // Metro (сборщик React Native) поддерживает динамический import() — он им и
+    // разбивает бандл. Но expo/tsconfig.base оставляет module по умолчанию, и
+    // tsc ругается TS1323 на каждый await import(). esnext приводит проверку
+    // типов в соответствие с тем, как код реально собирается.
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]
+    }
+  }
+}
