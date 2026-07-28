@@ -69,26 +69,56 @@ jobs:
         id: scheme
         working-directory: ios
         run: |
-          SCHEME=$(ls -1 *.xcworkspace | head -1 | sed 's/\.xcworkspace$//')
+          # ВАЖНО: .xcworkspace — это папка-бандл, а не файл. Без -d команда ls
+          # печатает её СОДЕРЖИМОЕ (contents.xcworkspacedata), и в xcodebuild
+          # уезжает несуществующее имя. -d заставляет вывести саму папку.
+          WORKSPACE=$(ls -1d *.xcworkspace 2>/dev/null | head -1)
+          if [ -z "$WORKSPACE" ]; then
+            echo "❌ .xcworkspace не найден — expo prebuild или pod install не отработали"
+            ls -la
+            exit 1
+          fi
+          SCHEME="${WORKSPACE%.xcworkspace}"
+          echo "workspace=$WORKSPACE" >> "$GITHUB_OUTPUT"
           echo "name=$SCHEME" >> "$GITHUB_OUTPUT"
+          echo "Воркспейс: $WORKSPACE"
           echo "Схема: $SCHEME"
+          # Показываем реальный список схем — если сборка потом упадёт на схеме,
+          # в логе сразу видно, из чего можно было выбирать.
+          xcodebuild -workspace "$WORKSPACE" -list || true
 
       # Ключевая часть: CODE_SIGNING_ALLOWED=NO отключает подпись целиком.
       # Без этого xcodebuild потребует сертификат и упадёт.
       - name: Сборка без подписи
         working-directory: ios
         run: |
-          xcodebuild \
-            -workspace "${{ steps.scheme.outputs.name }}.xcworkspace" \
-            -scheme "${{ steps.scheme.outputs.name }}" \
-            -configuration Release \
-            -sdk iphoneos \
-            -derivedDataPath build \
-            CODE_SIGN_IDENTITY="" \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO \
-            ONLY_ACTIVE_ARCH=NO \
-            | xcpretty && exit ${PIPESTATUS[0]}
+          # pipefail обязателен: без него код возврата берётся от последней
+          # команды в пайпе (xcpretty), и упавшая сборка выглядела бы успешной.
+          set -o pipefail
+
+          build() {
+            xcodebuild \
+              -workspace "${{ steps.scheme.outputs.workspace }}" \
+              -scheme "${{ steps.scheme.outputs.name }}" \
+              -configuration Release \
+              -sdk iphoneos \
+              -derivedDataPath build \
+              CODE_SIGN_IDENTITY="" \
+              CODE_SIGNING_REQUIRED=NO \
+              CODE_SIGNING_ALLOWED=NO \
+              ONLY_ACTIVE_ARCH=NO \
+              "$@"
+          }
+
+          # xcpretty делает лог читаемым, но это gem, которого на образе может
+          # не оказаться. Через пайп он бы утащил за собой всю сборку, поэтому
+          # используем его только если он реально есть.
+          if command -v xcpretty >/dev/null 2>&1; then
+            build | xcpretty
+          else
+            echo "xcpretty не найден — собираем с полным логом"
+            build
+          fi
 
       # .ipa — это обычный zip с папкой Payload внутри. xcodebuild archive +
       # exportArchive здесь не подходят: экспорт требует подписи, а нам нужен
