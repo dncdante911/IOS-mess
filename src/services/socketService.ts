@@ -390,7 +390,24 @@ class SocketService {
 
     try {
       this.socket = io(SOCKET_URL, {
-        transports: ['websocket', 'polling'],
+        // ТОЛЬКО WebSocket — как в Android (SocketManager.kt) и Windows.
+        //
+        // Сервер работает в PM2 cluster mode (несколько воркеров) за HAProxy.
+        // HTTP long-polling делает handshake на одном воркере, а следующие
+        // polling-запросы и upgrade попадают на ДРУГОЙ — PM2 распределяет
+        // соединения, sticky-сессий нет. Итог: "unknown session id" и
+        // бесконечный цикл реконнектов.
+        //
+        // @socket.io/redis-adapter это НЕ лечит: он маршрутизирует emit()
+        // между воркерами, но не привязывает polling-сессию к воркеру.
+        // WebSocket — одно TCP-соединение, живущее на одном воркере всё время.
+        //
+        // ⚠️ Не добавлять 'polling' в этот список «на всякий случай»: fallback
+        // здесь не страховка, а источник молчаливой потери входящих сообщений.
+        // Отправка при этом продолжает работать (она идёт через REST), поэтому
+        // симптом выглядит как «сообщения не приходят», а не как «нет связи».
+        transports: ['websocket'],
+        upgrade: false,
         query: {
           access_token: this.token,
           user_id: this.userId ?? '',
