@@ -207,7 +207,9 @@ async function tryDecryptMessage(msg: Message): Promise<Message> {
       msg.iv ?? '',
       msg.tag ?? '',
       msg.signalHeader,
-      Number(msg.id) || 0,
+      // id передаём как есть: кеш плейнтекста ключуется по нему же, а
+      // Number() на нечисловом id дал бы NaN и промах мимо кеша.
+      msg.id,
     );
     return {
       ...msg,

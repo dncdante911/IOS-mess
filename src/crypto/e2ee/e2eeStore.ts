@@ -51,6 +51,57 @@ export const KEY_RSPK = (uid: number, slot: string) => `e2ee_rspk_${uid}_${slot}
 /** Индекс всех созданных слотов, чтобы уметь чистить их пачкой. */
 const INDEX_KEY = 'e2ee_slot_index';
 
+/**
+ * Кеш расшифрованных текстов, ключ — id сообщения.
+ *
+ * Нужен по двум причинам, и первая — не оптимизация, а необходимость:
+ *
+ * 1. СВОИ отправленные сообщения расшифровать заново НЕВОЗМОЖНО. Self-sync
+ *    шифрует копию для остальных устройств отправителя, но не для самого
+ *    отправляющего — конверта для себя в сообщении нет. Без кеша своя
+ *    переписка исчезает при первом же перезапуске приложения.
+ * 2. Чужие сообщения не приходится расшифровывать при каждой прокрутке.
+ *
+ * Лежит в AsyncStorage, а не в Keychain: объём тут несопоставимо больше
+ * (вся история переписки), а Keychain рассчитан на мелкие секреты и работает
+ * заметно медленнее. Ключевой материал по-прежнему только в Keychain.
+ *
+ * ⚠️ Это открытый текст на диске. Ровно так же устроено на Android
+ * (SignalKeyStore.cacheDecryptedMessage) и в Windows — иначе E2EE-мессенджер
+ * не может показать собственную историю. Стирается вместе со всем остальным
+ * в wipeAllE2EEKeys().
+ */
+const MSG_CACHE_PREFIX = 'e2ee_msg_';
+
+export async function cacheDecryptedMessage(msgId: number | string, plaintext: string): Promise<void> {
+  if (!msgId || msgId === '0') return;
+  try {
+    await AsyncStorage.setItem(MSG_CACHE_PREFIX + msgId, plaintext);
+  } catch (e) {
+    console.warn('[E2EE/store] не удалось закешировать текст сообщения', msgId, e);
+  }
+}
+
+export async function getCachedDecryptedMessage(msgId: number | string): Promise<string | null> {
+  if (!msgId || msgId === '0') return null;
+  try {
+    return await AsyncStorage.getItem(MSG_CACHE_PREFIX + msgId);
+  } catch {
+    return null;
+  }
+}
+
+/** Очистка кеша текстов — вызывается только из wipeAllE2EEKeys(). */
+async function clearMessageCache(): Promise<void> {
+  try {
+    const keys = await AsyncStorage.getAllKeys();
+    const mine = keys.filter((k) => k.startsWith(MSG_CACHE_PREFIX));
+    if (mine.length) await AsyncStorage.multiRemove(mine);
+  } catch (e) {
+    console.warn('[E2EE/store] не удалось очистить кеш сообщений:', e);
+  }
+}
+
 // ─── Базовые операции ────────────────────────────────────────────────────────
 
 export async function secureGet<T>(key: string): Promise<T | null> {
@@ -152,6 +203,7 @@ export async function wipeAllE2EEKeys(): Promise<void> {
     secureRemove(KEY_SIGN),
     secureRemove(KEY_REGISTERED_DEV),
   ]);
+  await clearMessageCache();
   await writeIndex([]);
   console.warn('[E2EE/store] всё ключевое состояние удалено (выход из аккаунта)');
 }

@@ -57,7 +57,9 @@ import {
   type X25519KeyPair,
 } from './primitives';
 import {
+  cacheDecryptedMessage,
   clearSlotsForUser,
+  getCachedDecryptedMessage,
   KEY_DEVICE_ID,
   KEY_EK,
   KEY_IK,
@@ -377,11 +379,32 @@ export class E2EEService {
     ivB64: string,
     tagB64: string,
     headerJson: string | null | undefined,
-    msgId = 0,
+    msgId: number | string = 0,
   ): Promise<string | null> {
-    return this.lockFor(senderId).withLock(() =>
+    // Кеш проверяется ПЕРВЫМ и по очень важной причине: для СВОИХ отправленных
+    // сообщений это единственный источник текста. Self-sync шифрует копию для
+    // остальных устройств отправителя, но не для самого отправляющего — своего
+    // конверта в сообщении нет, и вывести ключ не из чего.
+    const cached = await getCachedDecryptedMessage(msgId);
+    if (cached !== null) return cached;
+
+    const plain = await this.lockFor(senderId).withLock(() =>
       this.decryptInternal(senderId, ciphertextB64, ivB64, tagB64, headerJson, msgId, false),
     );
+
+    // Расшифровали чужое — кладём в кеш, чтобы не повторять при каждой прокрутке.
+    if (plain !== null) await cacheDecryptedMessage(msgId, plain);
+    return plain;
+  }
+
+  /**
+   * Запомнить текст ОТПРАВЛЕННОГО сообщения.
+   *
+   * Вызывать сразу после успешной отправки, когда сервер вернул id. Без этого
+   * своя переписка читается только до перезапуска приложения.
+   */
+  async rememberSentMessage(msgId: number | string, plaintext: string): Promise<void> {
+    await cacheDecryptedMessage(msgId, plaintext);
   }
 
   private async decryptInternal(

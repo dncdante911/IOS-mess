@@ -361,9 +361,21 @@ export async function sendMessage(
   const raw = (res.data?.message_data ?? res.data) as Record<string, unknown> | null;
   if (!raw || typeof raw !== 'object') throw new Error('Failed to send message');
 
-  // Сервер возвращает эхо с шифротекстом — подставляем исходный текст, чтобы
-  // своё же сообщение не пришлось расшифровывать ради его показа.
-  return { ...normaliseMessage(raw), decryptedText: text };
+  const message = normaliseMessage(raw);
+
+  // Запоминаем открытый текст НАВСЕГДА, а не только для текущего показа.
+  //
+  // Своё отправленное сообщение расшифровать заново невозможно: self-sync
+  // шифрует копию для остальных устройств отправителя, но не для самого
+  // отправляющего — конверта для себя в сообщении нет. Без этой строки своя
+  // переписка исчезала при каждом перезапуске приложения.
+  if (message.id) {
+    await getE2EE().rememberSentMessage(message.id, text).catch(() => {
+      // Не фатально: сообщение отправлено, потеряется лишь локальная копия текста.
+    });
+  }
+
+  return { ...message, decryptedText: text };
 }
 
 /**
