@@ -29,6 +29,7 @@ import { useTranslation, type TranslationKeys } from '../../i18n';
 import type { Chat, Message } from '../../api/types';
 import type { RootStackParamList } from '../../navigation/types';
 import { MESSAGE_TYPES } from '../../constants/api';
+import { AvatarSize, FontSize, Radius, Spacing } from '../../theme/tokens';
 import { useSandboxStore } from '../../store/sandboxStore';
 import { SandboxChatsScreen } from '../sandbox/SandboxChatsScreen';
 
@@ -126,7 +127,7 @@ const ChatListItem: React.FC<ChatListItemProps> = ({ chat, isOnline, onPress, on
           <Avatar
             uri={chat.avatar}
             name={chat.name}
-            size={60}
+            size={AvatarSize.chatList}
             showOnline
             isOnline={isOnline || !!chat.isOnline}
           />
@@ -365,7 +366,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  headerTitle: { fontSize: 22, fontWeight: '700', letterSpacing: -0.3 },
+  headerTitle: { fontSize: FontSize.titleLarge, fontWeight: '700', letterSpacing: -0.3 },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   headerBtn: { padding: 4 },
   storyBar: { paddingHorizontal: 12, paddingVertical: 12, gap: 8 },
@@ -396,18 +397,18 @@ const styles = StyleSheet.create({
   // отступами 12/9. Раньше здесь был плоский список 16/10 — из-за этого один и
   // тот же чат на iPhone и на Android выглядел заметно по-разному.
   chatItem: {
-    marginHorizontal: 12,       // WMSpacing.cardOuterH
-    marginVertical: 3,          // WMSpacing.cardGapV
-    borderRadius: 14,
+    marginHorizontal: Spacing.cardOuterH,
+    marginVertical: Spacing.cardGapV,
+    borderRadius: Radius.card,
     overflow: 'hidden',
   },
   chatItemInner: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,      // WMSpacing.cardInnerH
-    paddingVertical: 9,         // WMSpacing.cardInnerV
+    paddingHorizontal: Spacing.cardInnerH,
+    paddingVertical: Spacing.cardInnerV,
   },
-  avatarWrap: { position: 'relative', marginRight: 12 },
+  avatarWrap: { position: 'relative', marginRight: Spacing.avatarGap },
   pinBadge: {
     position: 'absolute',
     bottom: 0,
@@ -428,15 +429,15 @@ const styles = StyleSheet.create({
   },
   chatNameRow: { flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 8 },
   // Кегли — как на Android: имя 17/SemiBold, время 12, превью 14.
-  chatName: { fontSize: 17, fontWeight: '600', flexShrink: 1 },
+  chatName: { fontSize: FontSize.titleMedium, fontWeight: '600', flexShrink: 1 },
   muteIcon: { marginLeft: 4 },
-  chatTime: { fontSize: 12, flexShrink: 0 },
+  chatTime: { fontSize: FontSize.labelMedium, flexShrink: 0 },
   chatBottomRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  chatPreview: { fontSize: 14, flex: 1, marginRight: 8 },
+  chatPreview: { fontSize: FontSize.bodySmall, flex: 1, marginRight: Spacing.md },
   // Карточки разделены собственным зазором (marginVertical), поэтому линия
   // между ними больше не нужна — на Android её тоже нет.
   separator: { height: 0 },

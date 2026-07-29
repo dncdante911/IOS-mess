@@ -20,6 +20,7 @@ import { useAuthStore } from '../../store/authStore';
 import type { RegisterData } from '../../api/types';
 import { useTranslation } from '../../i18n';
 import { useTheme } from '../../theme';
+import { FontSize, Radius } from '../../theme/tokens';
 
 type RegisterNavigationProp = NativeStackNavigationProp<AuthStackParamList, 'Register'>;
 
@@ -499,24 +500,24 @@ const styles = StyleSheet.create({
     paddingBottom: 28,
   },
   title: {
-    fontSize: 28,
+    fontSize: FontSize.headlineMedium,
     fontWeight: '700',
     marginBottom: 6,
   },
   subtitle: {
-    fontSize: 15,
+    fontSize: FontSize.bodyMedium,
   },
   errorBanner: {
     backgroundColor: 'rgba(255, 80, 80, 0.15)',
     borderWidth: 1,
     borderColor: 'rgba(255, 80, 80, 0.4)',
-    borderRadius: 10,
+    borderRadius: Radius.md,
     padding: 12,
     marginBottom: 20,
   },
   errorBannerText: {
     color: '#FF6B6B',
-    fontSize: 14,
+    fontSize: FontSize.bodySmall,
     fontWeight: '500',
     textAlign: 'center',
   },
@@ -531,16 +532,16 @@ const styles = StyleSheet.create({
     marginBottom: 18,
   },
   inputLabel: {
-    fontSize: 13,
+    fontSize: FontSize.labelLarge,
     fontWeight: '600',
     marginBottom: 8,
     letterSpacing: 0.3,
   },
   input: {
-    borderRadius: 12,
+    borderRadius: Radius.md,
     paddingVertical: 14,
     paddingHorizontal: 16,
-    fontSize: 16,
+    fontSize: FontSize.bodyLarge,
     borderWidth: 1,
     borderColor: 'transparent',
   },
@@ -550,7 +551,7 @@ const styles = StyleSheet.create({
   passwordContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 12,
+    borderRadius: Radius.md,
     borderWidth: 1,
     borderColor: 'transparent',
   },
@@ -561,7 +562,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 14,
     paddingHorizontal: 16,
-    fontSize: 16,
+    fontSize: FontSize.bodyLarge,
   },
   eyeButton: {
     paddingHorizontal: 14,
@@ -586,12 +587,12 @@ const styles = StyleSheet.create({
     borderRadius: 2,
   },
   strengthLabel: {
-    fontSize: 12,
+    fontSize: FontSize.labelMedium,
     fontWeight: '600',
   },
   fieldError: {
     color: '#FF6B6B',
-    fontSize: 12,
+    fontSize: FontSize.labelMedium,
     marginTop: 6,
     fontWeight: '500',
   },
@@ -602,16 +603,16 @@ const styles = StyleSheet.create({
   genderOption: {
     flex: 1,
     paddingVertical: 12,
-    borderRadius: 12,
+    borderRadius: Radius.md,
     borderWidth: 1,
     alignItems: 'center',
   },
   genderText: {
-    fontSize: 14,
+    fontSize: FontSize.bodySmall,
     fontWeight: '600',
   },
   createButton: {
-    borderRadius: 14,
+    borderRadius: Radius.searchBar,
     paddingVertical: 16,
     alignItems: 'center',
     shadowOffset: { width: 0, height: 4 },
@@ -626,7 +627,7 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   createButtonText: {
-    fontSize: 17,
+    fontSize: FontSize.titleMedium,
     fontWeight: '700',
     letterSpacing: 0.3,
   },
@@ -637,10 +638,10 @@ const styles = StyleSheet.create({
     paddingVertical: 24,
   },
   footerText: {
-    fontSize: 15,
+    fontSize: FontSize.bodyMedium,
   },
   footerLink: {
-    fontSize: 15,
+    fontSize: FontSize.bodyMedium,
     fontWeight: '600',
   },
 });

@@ -15,6 +15,7 @@ import { MESSAGE_TYPES } from '../../constants/api';
 import { useTheme } from '../../theme';
 import { useTranslation } from '../../i18n';
 import type { ThemeColors } from '../../theme';
+import { Bubble, FontSize, Radius, bubbleRadii } from '../../theme/tokens';
 
 interface MessageBubbleProps {
   message: Message;
@@ -326,12 +327,13 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   }
 
   const bubbleBg = isOwn ? theme.messageBubbleOwn : theme.messageBubbleOther;
-  const bubbleRadius = {
-    borderTopLeftRadius: isOwn ? 18 : 4,
-    borderTopRightRadius: isOwn ? 4 : 18,
-    borderBottomLeftRadius: 18,
-    borderBottomRightRadius: 18,
-  };
+
+  // Углы как на Android (BubbleStyles.kt): «хвост» снизу со стороны
+  // отправителя, а не сверху. Прежняя версия ставила маленький угол сверху и
+  // одинаковый радиус снизу — из-за этого пузыри выглядели заметно иначе.
+  // isFirstInGroup / isLastInGroup появятся, когда будет группировка подряд
+  // идущих сообщений одного автора; пока каждое сообщение — одиночное.
+  const bubbleRadius = bubbleRadii(isOwn);
 
   return (
     <View style={[styles.rowOuter, isOwn ? styles.rowOwnOuter : styles.rowOtherOuter]}>
@@ -366,15 +368,25 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
 };
 
 const styles = StyleSheet.create({
-  rowOuter: { marginVertical: 2, paddingHorizontal: 10 },
+  // Метрики из Android: строка сообщения — padding(horizontal = 16.dp),
+  // пузырь ограничен widthIn(max = 280.dp), а не долей ширины экрана: на
+  // больших iPhone проценты давали заметно более широкие пузыри.
+  rowOuter: { marginVertical: Bubble.rowGapV, paddingHorizontal: Bubble.rowPaddingH },
   rowOwnOuter: { alignItems: 'flex-end' },
   rowOtherOuter: { alignItems: 'flex-start' },
-  bubble: { maxWidth: '80%', paddingHorizontal: 12, paddingTop: 8, paddingBottom: 6 },
-  messageText: { color: '#FFFFFF', fontSize: 15, lineHeight: 21 },
-  editedLabel: { fontSize: 11, marginTop: 2 },
+  bubble: {
+    maxWidth: Bubble.maxWidth,
+    paddingHorizontal: Bubble.paddingH,
+    paddingTop: Bubble.paddingTop,
+    paddingBottom: Bubble.paddingBottom,
+  },
+  // 16sp — как в MessagesScreen.kt; было 15, текст выглядел мельче Android.
+  messageText: { color: '#FFFFFF', fontSize: FontSize.titleSmall, lineHeight: 22 },
+  editedLabel: { fontSize: FontSize.labelSmall, marginTop: 2 },
   link: { textDecorationLine: 'underline' },
-  imageContent: { width: 220, height: 160, borderRadius: 10 },
-  videoContainer: { width: 220, height: 140, borderRadius: 10, overflow: 'hidden' },
+  // Медиа в пузыре скругляется по WMCorners.md (12), как на Android.
+  imageContent: { width: 220, height: 160, borderRadius: Radius.md },
+  videoContainer: { width: 220, height: 140, borderRadius: Radius.md, overflow: 'hidden' },
   videoThumbnail: { width: '100%', height: '100%' },
   videoThumbnailPlaceholder: { width: '100%', height: '100%' },
   videoPlayOverlay: {
@@ -462,7 +474,7 @@ const styles = StyleSheet.create({
   metaRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: 3 },
   metaRowOwn: { justifyContent: 'flex-end' },
   metaRowOther: { justifyContent: 'flex-start' },
-  timeText: { color: 'rgba(255,255,255,0.5)', fontSize: 11 },
+  timeText: { color: 'rgba(255,255,255,0.5)', fontSize: FontSize.labelSmall },
   statusIcon: { marginLeft: 2 },
   statusDouble: { flexDirection: 'row', alignItems: 'center', marginLeft: 2 },
   statusCheck2: { marginLeft: -6 },

@@ -21,11 +21,15 @@ import { useAuthStore } from '../../store/authStore';
 import { useTranslation } from '../../i18n';
 import { useTheme } from '../../theme';
 import { LanguageSwitcher } from '../../components/common/LanguageSwitcher';
+import { FontSize, Radius, Spacing } from '../../theme/tokens';
 
 type LoginNavigationProp = NativeStackNavigationProp<AuthStackParamList, 'Login'>;
 
 const { width } = Dimensions.get('window');
-const LOGO_SIZE = width * 0.2;
+// Android задаёт логотип фиксированно (LoginActivity.kt: круг 112.dp внутри
+// бокса 148.dp), а не долей ширины экрана. На iPhone SE доля давала слишком
+// мелкий логотип, на Pro Max — слишком крупный.
+const LOGO_SIZE = 112;
 
 export function LoginScreen() {
   const { t } = useTranslation();
@@ -255,31 +259,32 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   appName: {
-    fontSize: 24,
+    fontSize: FontSize.headlineSmall,
     fontWeight: '700',
     letterSpacing: 0.3,
     marginBottom: 4,
   },
   appTagline: {
-    fontSize: 13,
+    fontSize: FontSize.labelLarge,
   },
   formContainer: {
     flex: 1,
   },
+  // 28sp — как в Android (LoginActivity.kt:473)
   welcomeTitle: {
-    fontSize: 26,
+    fontSize: FontSize.headlineMedium,
     fontWeight: '700',
     marginBottom: 6,
   },
   welcomeSubtitle: {
-    fontSize: 15,
+    fontSize: FontSize.bodyMedium,
     marginBottom: 28,
   },
   errorBanner: {
     backgroundColor: 'rgba(255, 80, 80, 0.15)',
     borderWidth: 1,
     borderColor: 'rgba(255, 80, 80, 0.4)',
-    borderRadius: 10,
+    borderRadius: Radius.md,
     padding: 12,
     marginBottom: 20,
   },
@@ -293,16 +298,16 @@ const styles = StyleSheet.create({
     marginBottom: 18,
   },
   inputLabel: {
-    fontSize: 13,
+    fontSize: FontSize.labelLarge,
     fontWeight: '600',
     marginBottom: 8,
     letterSpacing: 0.3,
   },
   input: {
-    borderRadius: 12,
+    borderRadius: Radius.md,
     paddingVertical: 14,
-    paddingHorizontal: 16,
-    fontSize: 16,
+    paddingHorizontal: Spacing.xl,
+    fontSize: FontSize.bodyLarge,
     borderWidth: 1,
     borderColor: 'transparent',
   },
@@ -334,9 +339,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
   },
+  // Кнопка входа на Android — «таблетка» (RoundedCornerShape(28)), а не
+  // прямоугольник с малым радиусом.
   signInButton: {
-    borderRadius: 14,
-    paddingVertical: 16,
+    borderRadius: Radius.searchBar,
+    paddingVertical: Spacing.xl,
     alignItems: 'center',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,

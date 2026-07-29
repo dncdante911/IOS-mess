@@ -18,6 +18,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '../../navigation/types';
 import { useTranslation } from '../../i18n';
 import { useTheme } from '../../theme';
+import { FontSize, Radius } from '../../theme/tokens';
 
 type ForgotPasswordNavigationProp = NativeStackNavigationProp<
   AuthStackParamList,
@@ -257,7 +258,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   backText: {
-    fontSize: 16,
+    fontSize: FontSize.bodyLarge,
     fontWeight: '500',
   },
   iconContainer: {
@@ -284,25 +285,25 @@ const styles = StyleSheet.create({
     paddingBottom: 28,
   },
   title: {
-    fontSize: 26,
+    fontSize: FontSize.headlineMedium,
     fontWeight: '700',
     marginBottom: 10,
   },
   subtitle: {
-    fontSize: 15,
+    fontSize: FontSize.bodyMedium,
     lineHeight: 22,
   },
   errorBanner: {
     backgroundColor: 'rgba(255, 80, 80, 0.15)',
     borderWidth: 1,
     borderColor: 'rgba(255, 80, 80, 0.4)',
-    borderRadius: 10,
+    borderRadius: Radius.md,
     padding: 12,
     marginBottom: 20,
   },
   errorBannerText: {
     color: '#FF6B6B',
-    fontSize: 14,
+    fontSize: FontSize.bodySmall,
     fontWeight: '500',
     textAlign: 'center',
   },
@@ -310,16 +311,16 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   inputLabel: {
-    fontSize: 13,
+    fontSize: FontSize.labelLarge,
     fontWeight: '600',
     marginBottom: 8,
     letterSpacing: 0.3,
   },
   input: {
-    borderRadius: 12,
+    borderRadius: Radius.md,
     paddingVertical: 14,
     paddingHorizontal: 16,
-    fontSize: 16,
+    fontSize: FontSize.bodyLarge,
     borderWidth: 1,
     borderColor: 'transparent',
   },
@@ -327,7 +328,7 @@ const styles = StyleSheet.create({
     borderColor: '#FF5C5C',
   },
   sendButton: {
-    borderRadius: 14,
+    borderRadius: Radius.searchBar,
     paddingVertical: 16,
     alignItems: 'center',
     shadowOffset: { width: 0, height: 4 },
@@ -341,7 +342,7 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   sendButtonText: {
-    fontSize: 17,
+    fontSize: FontSize.titleMedium,
     fontWeight: '700',
     letterSpacing: 0.3,
   },
@@ -369,13 +370,13 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   successTitle: {
-    fontSize: 26,
+    fontSize: FontSize.headlineMedium,
     fontWeight: '700',
     marginBottom: 14,
     textAlign: 'center',
   },
   successMessage: {
-    fontSize: 15,
+    fontSize: FontSize.bodyMedium,
     lineHeight: 24,
     textAlign: 'center',
     marginBottom: 16,
@@ -384,7 +385,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   successHint: {
-    fontSize: 13,
+    fontSize: FontSize.labelLarge,
     textAlign: 'center',
     lineHeight: 20,
     marginBottom: 32,
@@ -393,11 +394,11 @@ const styles = StyleSheet.create({
   resendButton: {
     paddingVertical: 12,
     paddingHorizontal: 24,
-    borderRadius: 12,
+    borderRadius: Radius.md,
     borderWidth: 1.5,
   },
   resendButtonText: {
-    fontSize: 15,
+    fontSize: FontSize.bodyMedium,
     fontWeight: '600',
   },
   footer: {
@@ -408,10 +409,10 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   footerText: {
-    fontSize: 15,
+    fontSize: FontSize.bodyMedium,
   },
   footerLink: {
-    fontSize: 15,
+    fontSize: FontSize.bodyMedium,
     fontWeight: '600',
   },
 });

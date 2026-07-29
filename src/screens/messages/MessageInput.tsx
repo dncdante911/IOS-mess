@@ -11,6 +11,7 @@ import {
 import { Feather } from '@expo/vector-icons';
 import type { Message } from '../../api/types';
 import { useTheme } from '../../theme';
+import { FontSize, Radius, Spacing } from '../../theme/tokens';
 import { useTranslation } from '../../i18n';
 
 interface MessageInputProps {
@@ -177,7 +178,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 12,
     marginTop: 8,
     marginBottom: 4,
-    borderRadius: 8,
+    borderRadius: Radius.md,
     overflow: 'hidden',
   },
   replyPreviewBorder: {
@@ -190,12 +191,12 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   replyPreviewAuthor: {
-    fontSize: 12,
+    fontSize: FontSize.labelSmall,
     fontWeight: '600',
     marginBottom: 2,
   },
   replyPreviewText: {
-    fontSize: 12,
+    fontSize: FontSize.labelSmall,
   },
   replyCloseButton: {
     paddingHorizontal: 10,
@@ -205,9 +206,9 @@ const styles = StyleSheet.create({
   inputRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    paddingHorizontal: 8,
-    paddingTop: 8,
-    paddingBottom: 4,
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.sm,
     gap: 4,
   },
   iconButton: {
@@ -219,7 +220,8 @@ const styles = StyleSheet.create({
   },
   textInput: {
     flex: 1,
-    borderRadius: 22,
+    // «Пилюля» как на Android (MessageInputComponents.kt: RoundedCornerShape(24))
+    borderRadius: 24,
     paddingHorizontal: 14,
     paddingTop: Platform.OS === 'ios' ? 10 : 8,
     paddingBottom: Platform.OS === 'ios' ? 10 : 8,
