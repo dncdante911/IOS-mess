@@ -6,6 +6,7 @@ import type { RootStackParamList } from './types';
 import { AuthNavigator } from './AuthNavigator';
 import { MainNavigator } from './MainNavigator';
 import { useAuthStore } from '../store/authStore';
+import { useChatStore } from '../store/chatStore';
 import { useTheme } from '../theme';
 import { useSandboxStore } from '../store/sandboxStore';
 
@@ -39,6 +40,24 @@ export default function AppNavigator() {
     loadStoredAuth();
     hydrateSandbox();
   }, [loadStoredAuth, hydrateSandbox]);
+
+  /**
+   * Подписка на события сокета после входа.
+   *
+   * ⚠️ Раньше initSocketListeners() была написана, но НЕ ВЫЗЫВАЛАСЬ ниоткуда —
+   * ни одного места во всём проекте. Сокет подключался, сервер события слал,
+   * но слушать их было некому: входящие сообщения, набор текста, статусы
+   * онлайн и отметки о прочтении просто не доходили до стора. Со стороны это
+   * выглядело как «с других устройств сообщения не приходят».
+   *
+   * Место выбрано здесь, а не в authStore, из-за циклического импорта:
+   * chatStore уже импортирует authStore (нужен свой userId для маршрутизации
+   * сообщений), и обратная зависимость замкнула бы круг.
+   */
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    useChatStore.getState().initSocketListeners();
+  }, [isLoggedIn]);
 
   if (isLoading) {
     return <LoadingScreen />;

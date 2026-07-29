@@ -53,6 +53,9 @@ import { getE2EE } from '../crypto/e2ee/e2eeService';
 import { getTranslation, useI18nStore } from '../i18n';
 import { useAuthStore } from './authStore';
 
+/** Обработчики сокета вешаются один раз за жизнь процесса. */
+let socketListenersReady = false;
+
 const TYPING_AUTO_RESET_MS = 6_000;
 const RECORDING_AUTO_RESET_MS = 8_000;
 
@@ -539,19 +542,29 @@ export const useChatStore = create<ChatState>()(
 
     // ── initSocketListeners ────────────────────────────────────
     initSocketListeners: () => {
+      // Повторный вход не должен подписывать обработчики второй раз — иначе
+      // каждое сообщение обрабатывалось бы дважды.
+      if (socketListenersReady) return;
+      socketListenersReady = true;
+
       // ── Private messages ──────────────────────────────────────
+      //
+      // ⚠️ Сокет присылает СЫРОЙ формат сервера (from_id, cipher_version,
+      // signal_header — snake_case), а не готовый Message. Раньше здесь стоял
+      // простой каст `data as Message`: поле id совпадало, поэтому проверка
+      // проходила, но fromId, cipherVersion и signalHeader оказывались
+      // undefined — сообщение не расшифровывалось и уходило не в тот чат.
+      // Тот же normaliseMessage(), что и для ответов REST.
       const handleIncoming = (data: unknown) => {
-        const msg = data as Message;
-        if (msg?.id) get().receiveMessage(msg);
+        if (!data || typeof data !== 'object') return;
+        const msg = chatApi.normaliseMessage(data as Record<string, unknown>);
+        if (msg.id) get().receiveMessage(msg);
       };
       socketService.on(SOCKET_EVENT_NEW_MESSAGE, handleIncoming);
       socketService.on(SOCKET_EVENT_PRIVATE_MESSAGE, handleIncoming);
 
       // ── Group messages ─────────────────────────────────────────
-      socketService.on(SOCKET_EVENT_GROUP_MESSAGE, (data: unknown) => {
-        const msg = data as Message;
-        if (msg?.id) get().receiveMessage(msg);
-      });
+      socketService.on(SOCKET_EVENT_GROUP_MESSAGE, handleIncoming);
 
       // ── Typing — private (6 s auto-reset) ────────────────────
       socketService.on(SOCKET_EVENT_TYPING, (data: unknown) => {
