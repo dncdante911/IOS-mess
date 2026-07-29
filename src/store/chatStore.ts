@@ -124,8 +124,25 @@ const _recordingTimers: Record<string, ReturnType<typeof setTimeout>> = {};
 // HELPERS
 // ─────────────────────────────────────────────────────────────
 
-function chatKey(msg: Message): string {
-  return msg.groupId ?? msg.toId;
+/**
+ * Ключ переписки, к которой относится сообщение, — id СОБЕСЕДНИКА.
+ *
+ * Раньше здесь было `msg.groupId ?? msg.toId`, и для исходящих это работало
+ * (toId — собеседник), а для ВХОДЯЩИХ toId — это я сам. Входящие складывались
+ * в переписку «сам с собой» и в открытом чате не появлялись вовсе: со стороны
+ * выглядело так, будто сообщения с других устройств не доходят.
+ *
+ * Групповые по-прежнему идут по groupId — там сторона не важна.
+ */
+function chatKey(msg: Message, myUserId: string): string {
+  if (msg.groupId) return msg.groupId;
+  // Своё сообщение → собеседник в toId; чужое → собеседник в fromId.
+  return msg.fromId === myUserId || msg.fromId === 'me' ? msg.toId : msg.fromId;
+}
+
+/** id текущего пользователя как строка — стор живёт вне React. */
+function currentUserId(): string {
+  return String(useAuthStore.getState().user?.id ?? '');
 }
 
 function upsertMessage(arr: Message[], incoming: Message): Message[] {
@@ -232,8 +249,22 @@ export const useChatStore = create<ChatState>()(
       set((s) => { s.isLoadingChats = true; });
       try {
         const chats = await chatApi.getChatsList(1);
+
+        // Последнее сообщение приходит зашифрованным, как и любое другое.
+        // Без расшифровки превью в списке чатов оставались бы пустыми: у
+        // E2EE-сообщений поле text намеренно пустое, а показывать шифротекст
+        // нельзя. Расшифровываем параллельно — это локальная операция,
+        // сеть не задействована.
+        const withPreviews = await Promise.all(
+          chats.map(async (chat) =>
+            chat.lastMessage
+              ? { ...chat, lastMessage: await tryDecryptMessage(chat.lastMessage) }
+              : chat,
+          ),
+        );
+
         set((s) => {
-          s.chats = chats;
+          s.chats = withPreviews;
           s.isLoadingChats = false;
         });
       } catch {
@@ -344,7 +375,7 @@ export const useChatStore = create<ChatState>()(
 
     // ── receiveMessage ─────────────────────────────────────────
     receiveMessage: (msg) => {
-      const key = chatKey(msg);
+      const key = chatKey(msg, currentUserId());
       tryDecryptMessage(msg).then((decrypted) => {
         set((s) => {
           s.messages[key] = upsertMessage(s.messages[key] ?? [], decrypted);

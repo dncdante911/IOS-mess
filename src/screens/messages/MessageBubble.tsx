@@ -96,9 +96,22 @@ const LinkifiedText: React.FC<{ text: string; style: object; theme: ThemeColors 
   );
 };
 
+/**
+ * Текст берётся из decryptedText, и только потом из text.
+ *
+ * У сообщений с E2EE поле `text` ПУСТОЕ намеренно: normaliseMessage() не пускает
+ * шифротекст в интерфейс (иначе в пузыре был бы base64), а расшифрованное
+ * складывает в decryptedText. Пузырь читал только `text`, поэтому набранное
+ * сообщение показывалось пару секунд — пока висело оптимистичное, — а после
+ * ответа сервера пузырь становился пустым.
+ */
+function displayText(message: Message): string {
+  return message.decryptedText ?? message.text ?? '';
+}
+
 const TextContent: React.FC<{ message: Message; theme: ThemeColors }> = ({ message, theme }) => (
   <View>
-    <LinkifiedText text={message.text} style={styles.messageText} theme={theme} />
+    <LinkifiedText text={displayText(message)} style={styles.messageText} theme={theme} />
     {message.isEdited && <Text style={[styles.editedLabel, { color: theme.textTertiary }]}>(edited)</Text>}
   </View>
 );
@@ -212,7 +225,7 @@ const StickerContent: React.FC<{ message: Message }> = ({ message }) => {
 
 const SystemContent: React.FC<{ message: Message; theme: ThemeColors }> = ({ message, theme }) => (
   <View style={styles.systemRow}>
-    <Text style={[styles.systemText, { color: theme.textSecondary }]}>{message.text}</Text>
+    <Text style={[styles.systemText, { color: theme.textSecondary }]}>{displayText(message)}</Text>
   </View>
 );
 
@@ -291,8 +304,9 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
       {
         text: t('copy'),
         onPress: () => {
-          if (message.text) {
-            Share.share({ message: message.text }).catch(() => null);
+          const shareText = displayText(message);
+          if (shareText) {
+            Share.share({ message: shareText }).catch(() => null);
           }
         },
       },
