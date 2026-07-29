@@ -158,6 +158,7 @@ const ru = {
   camera: 'Камера',
   gallery: 'Галерея',
   location: 'Локация',
+  view_location: 'Посмотреть местоположение',
   sticker: 'Стикер',
   gif: 'GIF',
   file: 'Файл',

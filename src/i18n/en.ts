@@ -158,6 +158,7 @@ const en = {
   camera: 'Camera',
   gallery: 'Gallery',
   location: 'Location',
+  view_location: 'View location',
   sticker: 'Sticker',
   gif: 'GIF',
   file: 'File',

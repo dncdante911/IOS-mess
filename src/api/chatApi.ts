@@ -93,8 +93,27 @@ function deriveType(raw: Record<string, unknown>): string {
   if (MEDIA.includes(serverType)) return serverType;
   if (raw.stickers) return 'sticker';
   if (raw.media) return mediaType || 'file';
-  if (raw.lat && raw.lng) return MESSAGE_TYPES.LOCATION;
+  if (hasCoordinates(raw.lat, raw.lng)) return MESSAGE_TYPES.LOCATION;
   return MESSAGE_TYPES.TEXT;
+}
+
+/**
+ * Настоящие ли это координаты.
+ *
+ * Проверять `raw.lat && raw.lng` НЕЛЬЗЯ: сервер подставляет строку '0' всем
+ * обычным сообщениям (routes/private-chats/messages.js — `lat: msg.lat || '0'`),
+ * а строка '0' в JavaScript истинна. Из-за этого КАЖДОЕ сообщение
+ * определялось как геолокация, и вся переписка отображалась карточками
+ * «Переглянути розташування».
+ *
+ * Нулевые координаты отбрасываем осознанно: точка 0°,0° — это Атлантика у
+ * берегов Африки, реальных сообщений оттуда не бывает, а вот заглушек '0'
+ * от сервера приходит сколько угодно.
+ */
+function hasCoordinates(lat: unknown, lng: unknown): boolean {
+  const latNum = Number(str(lat ?? ''));
+  const lngNum = Number(str(lng ?? ''));
+  return Number.isFinite(latNum) && Number.isFinite(lngNum) && (latNum !== 0 || lngNum !== 0);
 }
 
 /** Build reply-to fields from server reply object or flat fields */
@@ -157,8 +176,11 @@ export function normaliseMessage(raw: Record<string, unknown>): Message {
     tag: isEncrypted ? (raw.tag as string | undefined) : undefined,
     signalHeader: isEncrypted ? (raw.signal_header as string | undefined) : undefined,
     decryptedText: raw.decrypted_text ? str(raw.decrypted_text) : undefined,
-    lat: raw.lat ? str(raw.lat) : undefined,
-    lng: raw.lng ? str(raw.lng) : undefined,
+    // Та же ловушка, что в deriveType(): '0' — истинная строка. Без проверки
+    // каждое сообщение уносило с собой фиктивные координаты 0,0.
+    ...(hasCoordinates(raw.lat, raw.lng)
+      ? { lat: str(raw.lat), lng: str(raw.lng) }
+      : {}),
     stickers: raw.stickers ? str(raw.stickers) : undefined,
     createdAt,
     isLocalPending: false,

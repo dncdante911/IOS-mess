@@ -186,7 +186,10 @@ const FileContent: React.FC<{ message: Message; theme: ThemeColors }> = ({ messa
 };
 
 const LocationContent: React.FC<{ message: Message; theme: ThemeColors }> = ({ message, theme }) => {
-  const address = message.locationName ?? 'Переглянути розташування';
+  const { t } = useTranslation();
+  // Было захардкожено «Переглянути розташування» — единственная строка на
+  // экране, не проходившая через словари.
+  const address = message.locationName ?? t('view_location');
   return (
     <TouchableOpacity
       style={styles.locationContainer}

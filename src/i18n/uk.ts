@@ -158,6 +158,7 @@ const uk = {
   camera: 'Камера',
   gallery: 'Галерея',
   location: 'Локація',
+  view_location: 'Переглянути розташування',
   sticker: 'Стікер',
   gif: 'GIF',
   file: 'Файл',
