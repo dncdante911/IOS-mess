@@ -18,6 +18,7 @@
 import { getE2EE } from '../crypto/e2ee/e2eeService';
 import { CIPHER_VERSION_E2EE, ENCRYPTED_CIPHER_VERSIONS } from '../constants/api';
 import { getTranslation, useI18nStore } from '../i18n';
+import { useAuthStore } from '../store/authStore';
 import type { Message } from './types';
 
 /** Плейсхолдер на языке пользователя — модуль живёт вне React. */
@@ -58,6 +59,10 @@ export async function decryptMessage(msg: Message): Promise<Message> {
       msg.tag ?? '',
       msg.signalHeader,
       msg.id,
+      // Свой id нужен сервису, чтобы при первом приёме сверить регистрацию
+      // устройства с сервером — иначе читающее устройство может так и не
+      // попасть в signal_keys.
+      Number(useAuthStore.getState().user?.id ?? 0) || 0,
     );
     return { ...msg, decryptedText: plain ?? encryptedPlaceholder() };
   } catch (e) {

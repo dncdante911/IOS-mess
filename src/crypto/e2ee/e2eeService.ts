@@ -380,6 +380,7 @@ export class E2EEService {
     tagB64: string,
     headerJson: string | null | undefined,
     msgId: number | string = 0,
+    myUserIdHint = 0,
   ): Promise<string | null> {
     // Кеш проверяется ПЕРВЫМ и по очень важной причине: для СВОИХ отправленных
     // сообщений это единственный источник текста. Self-sync шифрует копию для
@@ -387,6 +388,15 @@ export class E2EEService {
     // конверта в сообщении нет, и вывести ключ не из чего.
     const cached = await getCachedDecryptedMessage(msgId);
     if (cached !== null) return cached;
+
+    // Регистрация проверяется и при ПРИЁМЕ, а не только при отправке — как на
+    // Android (E2EEService.kt: «Register our device on first decrypt too»).
+    //
+    // Смысл: пока устройства нет в signal_keys, отправители его не видят и
+    // конверт для него не создают. Устройство, которое только читает и ничего
+    // не отправляло, иначе никогда бы не зарегистрировалось и получало бы
+    // «зашифровано» на каждом сообщении — молча и навсегда.
+    await this.ensureRegistered(myUserIdHint || 0);
 
     const plain = await this.lockFor(senderId).withLock(() =>
       this.decryptInternal(senderId, ciphertextB64, ivB64, tagB64, headerJson, msgId, false),
