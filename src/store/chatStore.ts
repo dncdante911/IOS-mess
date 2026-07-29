@@ -46,11 +46,8 @@ import {
   USER_ACTION_RECORDING,
   SOCKET_EVENT_USER_ACTION,
   SOCKET_EVENT_GROUP_USER_ACTION,
-  CIPHER_VERSION_E2EE,
-  ENCRYPTED_CIPHER_VERSIONS,
 } from '../constants/api';
-import { getE2EE } from '../crypto/e2ee/e2eeService';
-import { getTranslation, useI18nStore } from '../i18n';
+import { decryptMessage as tryDecryptMessage } from '../api/messageDecrypt';
 import { useAuthStore } from './authStore';
 
 /** Обработчики сокета вешаются один раз за жизнь процесса. */
@@ -154,71 +151,6 @@ function upsertMessage(arr: Message[], incoming: Message): Message[] {
   const copy = [...arr];
   copy[idx] = incoming;
   return copy;
-}
-
-/**
- * Плейсхолдер для нечитаемого сообщения — на языке, выбранном пользователем.
- * getTranslation() по умолчанию отдаёт украинский, поэтому текущий язык берём
- * из стора напрямую: стор живёт вне React и хука здесь использовать нельзя.
- */
-function encryptedPlaceholder(): string {
-  return getTranslation('encrypted_message', useI18nStore.getState().language);
-}
-
-/**
- * Расшифровка входящего сообщения (E2EE v6).
- *
- * Возвращает сообщение с заполненным decryptedText либо с плейсхолдером
- * «зашифровано» — но НИКОГДА с сырым base64 в поле text: пользователь не
- * должен видеть шифротекст ни при каких сбоях.
- *
- * Что с остальными версиями:
- *   3 — Double Ratchet. НЕ будет реализован никогда (решение владельца), да и
- *       ключей от той истории на этом устройстве не существует.
- *   4 — групповой GSK, устаревший.
- *   5 — Sender Key v5, АКТУАЛЬНЫЙ протокол ГРУППОВЫХ чатов. Здесь пока не
- *       реализован только потому, что групп на iOS ещё нет; когда дойдём до
- *       групп — портируется из windows-messenger/src/senderKeyService.ts
- *       (459 строк) и добавляется отдельной веткой в этот метод.
- *       ⚠️ В личных чатах cv=5 означает совсем другое — шифрование серверным
- *       мастер-ключом, и там текст приходит уже расшифрованным.
- *
- * До тех пор всё это помечается нечитаемым сразу, без попыток и шума в логах.
- */
-async function tryDecryptMessage(msg: Message): Promise<Message> {
-  const cv = msg.cipherVersion;
-  if (!cv || !ENCRYPTED_CIPHER_VERSIONS.includes(cv)) return msg;
-
-  // Своё же отправленное сообщение: расшифровывать нечего, текст уже известен.
-  if (msg.decryptedText) return msg;
-
-  if (cv !== CIPHER_VERSION_E2EE) {
-    return { ...msg, decryptedText: encryptedPlaceholder() };
-  }
-
-  if (!msg.text || !msg.signalHeader) {
-    return { ...msg, decryptedText: encryptedPlaceholder() };
-  }
-
-  try {
-    const plain = await getE2EE().decryptMessage(
-      Number(msg.fromId),
-      msg.text,
-      msg.iv ?? '',
-      msg.tag ?? '',
-      msg.signalHeader,
-      // id передаём как есть: кеш плейнтекста ключуется по нему же, а
-      // Number() на нечисловом id дал бы NaN и промах мимо кеша.
-      msg.id,
-    );
-    return {
-      ...msg,
-      decryptedText: plain ?? encryptedPlaceholder(),
-    };
-  } catch (e) {
-    console.error('[chatStore] расшифровка сообщения', msg.id, 'не удалась', e);
-    return { ...msg, decryptedText: encryptedPlaceholder() };
-  }
 }
 
 /** Fire-and-forget: send bulk seen receipt for all unread messages. */

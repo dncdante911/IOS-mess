@@ -36,6 +36,7 @@ import {
 } from '../../constants/api';
 import * as chatApi from '../../api/chatApi';
 import { normaliseMessage } from '../../api/chatApi';
+import { decryptMessage, decryptMessages } from '../../api/messageDecrypt';
 import type { Message } from '../../api/types';
 import { Avatar } from '../../components/common/Avatar';
 import MessageBubble from './MessageBubble';
@@ -95,8 +96,11 @@ const MessagesScreen: React.FC<Props> = ({ navigation, route }) => {
     setIsLoading(true);
     try {
       const data = await chatApi.getMessages(userId);
+      // Без расшифровки вся история рисуется пустыми пузырями: у E2EE-сообщений
+      // поле text пустое намеренно, текст появляется только в decryptedText.
+      const decrypted = await decryptMessages(data);
       if (!isMounted.current) return;
-      setMessages(data);
+      setMessages(decrypted);
       setHasMore(data.length > 0);
       // Mark as seen
       chatApi.markSeen(userId).catch(() => null);
@@ -118,11 +122,12 @@ const MessagesScreen: React.FC<Props> = ({ navigation, route }) => {
     setIsLoadingMore(true);
     try {
       const older = await chatApi.loadMoreMessages(userId, lastMsg.id);
+      const decryptedOlder = await decryptMessages(older);
       if (!isMounted.current) return;
-      if (older.length === 0) {
+      if (decryptedOlder.length === 0) {
         setHasMore(false);
       } else {
-        setMessages((prev) => [...prev, ...older]);
+        setMessages((prev) => [...prev, ...decryptedOlder]);
       }
     } catch {
       // Non-critical — silently ignore
@@ -157,13 +162,19 @@ const MessagesScreen: React.FC<Props> = ({ navigation, route }) => {
     // Incoming private message — normalise snake_case server payload
     const handlePrivateMessage = (data: unknown) => {
       if (!isMounted.current) return;
-      const msg = normaliseMessage(data as Record<string, unknown>);
-      if (msg.fromId !== userId && msg.toId !== userId) return;
-      setMessages((prev) => {
-        if (prev.some((m) => m.id === msg.id)) return prev;
-        return [msg, ...prev];
+      const raw = normaliseMessage(data as Record<string, unknown>);
+      if (raw.fromId !== userId && raw.toId !== userId) return;
+
+      // Расшифровка асинхронная, поэтому сообщение добавляется в списке
+      // ПОСЛЕ неё — иначе в чате на мгновение появлялся бы пустой пузырь.
+      decryptMessage(raw).then((msg) => {
+        if (!isMounted.current) return;
+        setMessages((prev) => {
+          if (prev.some((m) => m.id === msg.id)) return prev;
+          return [msg, ...prev];
+        });
+        chatApi.markSeen(userId).catch(() => null);
       });
-      chatApi.markSeen(userId).catch(() => null);
     };
 
     // Typing indicators — server payload contains user_id (numeric) of the typer
