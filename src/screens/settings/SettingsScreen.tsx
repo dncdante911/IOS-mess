@@ -16,7 +16,7 @@ import { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 
 import { RootStackParamList, MainTabParamList } from '../../navigation/types';
 import { useAuthStore } from '../../store/authStore';
-import { useTheme } from '../../theme';
+import { useTheme, THEME_VARIANTS } from '../../theme';
 import { useTranslation } from '../../i18n';
 import { getMediaUrl } from '../../utils/mediaUtils';
 import type { ThemeColors } from '../../theme';
@@ -189,7 +189,13 @@ const SettingsScreen: React.FC<Props> = ({ navigation }) => {
       </Section>
 
       <Section title={t('settings_appearance')} theme={theme}>
-        <SettingsRow icon="moon" label={t('theme')} value={t('theme_classic_blue')} onPress={comingSoon} theme={theme} />
+        <SettingsRow
+          icon="moon"
+          label={t('theme')}
+          value={THEME_VARIANTS[theme.variant]?.nameKey ? t(THEME_VARIANTS[theme.variant].nameKey as never) : undefined}
+          onPress={() => navigation.navigate('ThemeSettings')}
+          theme={theme}
+        />
         <SettingsRow icon="globe" label={t('language')} value={langDisplay} onPress={comingSoon} theme={theme} />
         <SettingsRow icon="type" label={t('font_size')} onPress={comingSoon} theme={theme} isLast={!devUnlocked} />
         {devUnlocked && (

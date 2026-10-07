@@ -44,10 +44,15 @@
         "Опечатка исправлена заодно: домен worldmates.club, а не .com —",
         "со старым значением диплинки тихо не работали бы."
       ],
-      "UIBackgroundModes": ["remote-notification", "voip"],
+      "UIBackgroundModes": [
+        "remote-notification",
+        "voip"
+      ],
       "entitlements": {
         "aps-environment": "development",
-        "com.apple.developer.associated-domains": ["applinks:worldmates.club"]
+        "com.apple.developer.associated-domains": [
+          "applinks:worldmates.club"
+        ]
       }
     },
     "android": {
@@ -82,8 +87,16 @@
           "icon": "./assets/notification-icon.png",
           "color": "#1565C0",
           "sounds": [
-            "./assets/sounds/message.wav",
-            "./assets/sounds/call.wav"
+            "./assets/sounds/notif_pop.wav",
+            "./assets/sounds/notif_chime.wav",
+            "./assets/sounds/notif_marimba.wav",
+            "./assets/sounds/notif_bell.wav",
+            "./assets/sounds/notif_telegram.wav",
+            "./assets/sounds/notif_xylophone.wav",
+            "./assets/sounds/notif_harp.wav",
+            "./assets/sounds/notif_glass.wav",
+            "./assets/sounds/notif_wood.wav",
+            "./assets/sounds/call_ringtone.wav"
           ]
         }
       ],

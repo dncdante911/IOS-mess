@@ -21,6 +21,10 @@ import { ensureStorageDirs } from './storageManager';
 import { setE2EEAccount } from '../crypto/e2ee/e2eeStore';
 import { socketService } from '../services/socketService';
 import { initCertPinning } from './certPinning';
+import { ThemeManager, ThemeProfileRepository } from '../theme/themeManager';
+import { UIStylePreferences, useUIStyle } from '../preferences/uiStyle';
+import { loadAppFonts, loadChatFont } from '../fonts/fonts';
+import { AnimatedBgPrefs } from '../theme/backgrounds/ChatAnimatedBackground';
 
 type Hook = () => void | Promise<void>;
 const foregroundHooks: Hook[] = [];
@@ -80,6 +84,16 @@ export const WMApplication = {
     await UserSession.hydrate();
     await AccountManager.init().catch((e) => console.warn('[WMApplication] accounts:', e));
     if (UserSession.userId > 0) await setE2EEAccount(UserSession.userId);
+
+    // Тема и стиль интерфейса — до первого кадра (ThemeRepository/UIStylePreferences)
+    ThemeManager.init();
+    UIStylePreferences.init();
+    AnimatedBgPrefs.syncFromPrefs();
+    // Фирменные шрифты + выбранный шрифт чата (в фоне, не блокируя старт)
+    void loadAppFonts();
+    void loadChatFont(useUIStyle.getState().chatFont);
+    // Профиль темы с сервера — один раз на аккаунт на устройстве
+    if (UserSession.isLoggedIn) void ThemeProfileRepository.pullProfileOnceIfNeeded();
 
     PerformanceManager.init();
     CachePreferences.init();

@@ -106,6 +106,8 @@ async function persistAndConnect(
   });
   // Мультиаккаунт: каждый вход фиксируется в свичере (Android: saveCurrentSessionAsAccount)
   await AccountManager.saveCurrentSessionAsAccount().catch(() => {});
+  // Тема с другого устройства — один раз на аккаунт (Android: WorldMatesThemedApp)
+  void import('../theme/themeManager').then(({ ThemeProfileRepository }) => ThemeProfileRepository.pullProfileOnceIfNeeded());
   socketService.connect(accessToken);
   scheduleE2EERegistration(Number(user.id) || 0);
 }

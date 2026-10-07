@@ -10,6 +10,9 @@ import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-ico
 import AppNavigator from './src/navigation/AppNavigator';
 import './src/core/android';
 import { WMApplication } from './src/core/app';
+import { Provider as PaperProvider } from 'react-native-paper';
+import { useWMTheme } from './src/theme';
+import { WMToastHost } from './src/components/common/WMToast';
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
@@ -65,10 +68,25 @@ export default function App() {
   return (
     <GestureHandlerRootView style={styles.root} onLayout={onLayoutRootView}>
       <SafeAreaProvider>
-        <StatusBar style="auto" />
-        <AppNavigator />
+        <ThemedRoot />
       </SafeAreaProvider>
     </GestureHandlerRootView>
+  );
+}
+
+/**
+ * WorldMatesThemedApp: тема Material 3 (react-native-paper) по выбранному
+ * варианту + статус-бар по режиму, как на Android.
+ */
+function ThemedRoot() {
+  const theme = useWMTheme();
+  return (
+    <PaperProvider theme={theme.paper}>
+      <StatusBar style={theme.isDark ? 'light' : 'dark'} />
+      <AppNavigator />
+      {/* Хост фирменных уведомлений поверх любого экрана (как WorldMatesThemedApp) */}
+      <WMToastHost />
+    </PaperProvider>
   );
 }
 

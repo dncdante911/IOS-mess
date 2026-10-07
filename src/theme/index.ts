@@ -1,129 +1,126 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { create } from 'zustand';
-import { BaseColors, ThemePalettes, ThemeVariantKey } from './colors';
+/**
+ * Тема приложения.
+ *
+ * Новая система (порт Android ui/theme): useWMTheme() → { colorScheme (роли
+ * Material 3), extended (пузыри, онлайн, бейджи…), palette, paper }.
+ * Новые экраны пишутся на ней — имена ролей те же, что в Compose:
+ *   MaterialTheme.colorScheme.surfaceContainerHigh → theme.colorScheme.surfaceContainerHigh
+ *   WMColors.extendedColors.messageBubbleOwn      → theme.extended.messageBubbleOwn
+ *
+ * useTheme() — прежний плоский набор цветов для ранних экранов iOS; теперь
+ * он ВЫЧИСЛЯЕТСЯ из новой системы, так что старые экраны тоже следуют
+ * выбранной теме (50 вариантов, светлый/тёмный режим).
+ */
+import { useMemo } from 'react';
+import { AndroidColors as C } from './gen/colors';
+import { ThemeManager, currentWMTheme, useWMTheme } from './themeManager';
+import type { WMTheme } from './wmTheme';
+import type { ThemeVariant } from './gen/variants';
 
 export interface ThemeColors {
-  // Backgrounds
   background: string;
   surface: string;
   surfaceElevated: string;
   inputBackground: string;
   tabBar: string;
-
-  // Text
   text: string;
   textSecondary: string;
   textTertiary: string;
   textInverse: string;
-
-  // Brand
   primary: string;
   primaryDark: string;
   primaryLight: string;
   secondary: string;
   accent: string;
-
-  // Messages
   messageBubbleOwn: string;
   messageBubbleOther: string;
   messageBubbleOwnText: string;
   messageBubbleOtherText: string;
-
-  // UI elements
   divider: string;
   border: string;
   badge: string;
   online: string;
   offline: string;
-
-  // Feedback
   error: string;
   success: string;
   warning: string;
-
-  // Status
   messageRead: string;
   messageDelivered: string;
   messageSent: string;
-
-  // Misc
   overlay: string;
   white: string;
   black: string;
   transparent: string;
   isDark: boolean;
-  variant: ThemeVariantKey;
+  variant: ThemeVariant;
 }
 
-function buildTheme(variant: ThemeVariantKey): ThemeColors {
-  const palette = ThemePalettes[variant];
+/** Плоский набор цветов из новой темы. */
+export function toLegacyColors(t: WMTheme): ThemeColors {
+  const cs = t.colorScheme;
+  const ex = t.extended;
+  // В Compose текст пузыря подбирается по яркости фона (AdaptiveBubbleColor) —
+  // здесь упрощённо: свой пузырь — onPrimary-подобный, чужой — onSurface.
   return {
-    background: palette.background,
-    surface: palette.surface,
-    surfaceElevated: palette.surfaceElevated,
-    inputBackground: BaseColors.surfaceSearchDark,
-    tabBar: palette.tabBar,
-    text: BaseColors.textPrimaryDark,
-    textSecondary: BaseColors.textSecondaryDark,
-    textTertiary: BaseColors.textTertiary,
-    textInverse: BaseColors.black,
-    primary: palette.primary,
-    primaryDark: palette.primaryDark,
-    primaryLight: palette.primaryLight,
-    secondary: palette.secondary,
-    accent: palette.accent,
-    messageBubbleOwn: palette.messageBubbleOwn,
-    messageBubbleOther: palette.messageBubbleOther,
-    messageBubbleOwnText: BaseColors.white,
-    messageBubbleOtherText: BaseColors.textPrimaryDark,
-    divider: BaseColors.dividerDark,
-    border: BaseColors.dividerDark,
-    badge: BaseColors.unreadBadge,
-    online: BaseColors.online,
-    offline: BaseColors.offline,
-    error: BaseColors.error,
-    success: BaseColors.success,
-    warning: BaseColors.away,
-    messageRead: BaseColors.messageRead,
-    messageDelivered: BaseColors.messageDelivered,
-    messageSent: BaseColors.messageSent,
-    overlay: BaseColors.overlay,
-    white: BaseColors.white,
-    black: BaseColors.black,
-    transparent: BaseColors.transparent,
-    isDark: true,
-    variant,
+    background: cs.background,
+    surface: cs.surface,
+    surfaceElevated: cs.surfaceContainerHigh,
+    inputBackground: ex.searchBarBackground,
+    tabBar: cs.surfaceContainer,
+    text: cs.onSurface,
+    textSecondary: cs.onSurfaceVariant,
+    textTertiary: t.isDark ? C.TextTertiaryDark : C.TextTertiary,
+    textInverse: cs.inverseOnSurface,
+    primary: cs.primary,
+    primaryDark: t.palette.primaryDark,
+    primaryLight: t.palette.primaryLight,
+    secondary: cs.secondary,
+    accent: t.palette.accent,
+    messageBubbleOwn: ex.messageBubbleOwn,
+    messageBubbleOther: t.isDark ? ex.messageBubbleOtherDark : ex.messageBubbleOther,
+    messageBubbleOwnText: '#FFFFFF',
+    messageBubbleOtherText: cs.onSurface,
+    divider: cs.outline,
+    border: cs.outline,
+    badge: ex.unreadBadge,
+    online: ex.onlineGreen,
+    offline: ex.offlineGray,
+    error: cs.error,
+    success: C.Success,
+    warning: C.Warning,
+    messageRead: C.MessageRead,
+    messageDelivered: C.MessageDelivered,
+    messageSent: C.MessageSent,
+    overlay: C.Overlay,
+    white: '#FFFFFF',
+    black: '#000000',
+    transparent: 'transparent',
+    isDark: t.isDark,
+    variant: t.variant,
   };
 }
 
-interface ThemeState {
-  variant: ThemeVariantKey;
-  colors: ThemeColors;
-  setVariant: (v: ThemeVariantKey) => Promise<void>;
-  _hydrate: () => Promise<void>;
-}
-
-export const useThemeStore = create<ThemeState>((set) => ({
-  variant: 'CLASSIC',
-  colors: buildTheme('CLASSIC'),
-  setVariant: async (v: ThemeVariantKey) => {
-    await AsyncStorage.setItem('app_theme', v);
-    set({ variant: v, colors: buildTheme(v) });
-  },
-  _hydrate: async () => {
-    const stored = await AsyncStorage.getItem('app_theme');
-    if (stored && stored in ThemePalettes) {
-      const v = stored as ThemeVariantKey;
-      set({ variant: v, colors: buildTheme(v) });
-    }
-  },
-}));
-
-// Main hook used in components
+/** Прежний хук ранних экранов — теперь следует выбранной теме. */
 export function useTheme(): ThemeColors {
-  return useThemeStore((s) => s.colors);
+  const t = useWMTheme();
+  return useMemo(() => toLegacyColors(t), [t]);
 }
 
-// Static access for non-component code
-export const defaultTheme = buildTheme('CLASSIC');
-export { BaseColors, ThemePalettes, ThemeVariantKey };
+/** Для класс-компонентов и кода вне React (без учёта системного режима). */
+export const defaultTheme: ThemeColors = toLegacyColors(currentWMTheme());
+
+/**
+ * Совместимость: authStore/SplashScreen вызывают useThemeStore.getState()._hydrate().
+ * Тема теперь загружается в WMApplication.onCreate() (ThemeManager.init).
+ */
+export const useThemeStore = {
+  getState: () => ({
+    _hydrate: async () => ThemeManager.init(),
+  }),
+};
+
+export { useWMTheme, ThemeManager, currentWMTheme } from './themeManager';
+export type { WMTheme } from './wmTheme';
+export { WMTypography, WMTextStyles, WMShapes, WMSpacing, WMCorners, WMMotion, Shapes, lerpColor, withAlpha } from './wmTheme';
+export { THEME_VARIANTS, THEME_PALETTES, THEME_VARIANT_KEYS, type ThemeVariant } from './gen/variants';
+export { AndroidColors, GroupAvatarColors } from './gen/colors';

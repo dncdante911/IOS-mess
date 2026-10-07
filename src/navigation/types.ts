@@ -38,4 +38,10 @@ export type RootStackParamList = {
   SavedMessages: undefined;
   Notes: undefined;
   Drafts: undefined;
+  ThemeSettings: undefined;
+  UIStyleOnboarding: undefined;
+  Premium: undefined;
+  PremiumChannelsTheme: undefined;
+  CallFrameSettings: undefined;
+  VideoMessageFrameSettings: undefined;
 };

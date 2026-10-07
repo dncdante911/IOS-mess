@@ -13,6 +13,9 @@ import { GroupsScreen } from '../screens/groups/GroupsScreen';
 import { ChannelDetailsScreen } from '../screens/channels/ChannelDetailsScreen';
 import UserProfileScreen from '../screens/profile/UserProfileScreen';
 import SettingsScreen from '../screens/settings/SettingsScreen';
+import ThemeSettingsScreen from '../features/themeSettings/ThemeSettingsScreen';
+import UIStyleOnboardingScreen from '../features/onboarding/UIStyleOnboardingScreen';
+import { UIStylePreferences } from '../preferences/uiStyle';
 import { useTheme } from '../theme';
 import { useTranslation } from '../i18n';
 import type { MainTabParamList, RootStackParamList } from './types';
@@ -50,6 +53,24 @@ function NotesScreen() {
 function GroupMessagesScreen() {
   const { t } = useTranslation();
   return <PlaceholderScreen title={t('groups')} />;
+}
+
+// Экраны следующих фаз — пока заглушки, чтобы переходы с портированных экранов работали
+function PremiumScreen() {
+  const { t } = useTranslation();
+  return <PlaceholderScreen title={t('premium_title')} />;
+}
+function PremiumChannelsThemeScreen() {
+  const { t } = useTranslation();
+  return <PlaceholderScreen title={t('premium_channels_design_title')} />;
+}
+function CallFrameSettingsScreen() {
+  const { t } = useTranslation();
+  return <PlaceholderScreen title={t('theme_cat_calls')} />;
+}
+function VideoMessageFrameSettingsScreen() {
+  const { t } = useTranslation();
+  return <PlaceholderScreen title={t('theme_cat_video_msg')} />;
 }
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -104,7 +125,12 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export function MainNavigator() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    // Первый вход — онбординг выбора режима и стиля (UIStyleOnboardingActivity.afterAuthIntent)
+    <Stack.Navigator
+      screenOptions={{ headerShown: false }}
+      initialRouteName={UIStylePreferences.hasSeenOnboarding() ? 'Main' : 'UIStyleOnboarding'}
+    >
+      <Stack.Screen name="UIStyleOnboarding" component={UIStyleOnboardingScreen} options={{ animation: 'fade' }} />
       <Stack.Screen name="Main" component={TabNavigator} />
       <Stack.Screen
         name="Messages"
@@ -141,6 +167,11 @@ export function MainNavigator() {
         component={SavedMessagesScreen}
         options={{ animation: 'slide_from_right' }}
       />
+      <Stack.Screen name="ThemeSettings" component={ThemeSettingsScreen} options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="Premium" component={PremiumScreen} options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="PremiumChannelsTheme" component={PremiumChannelsThemeScreen} options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="CallFrameSettings" component={CallFrameSettingsScreen} options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="VideoMessageFrameSettings" component={VideoMessageFrameSettingsScreen} options={{ animation: 'slide_from_right' }} />
       <Stack.Screen
         name="Notes"
         component={NotesScreen}

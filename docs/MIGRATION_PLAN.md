@@ -183,21 +183,31 @@ if (r.apiStatus === 200) showKarma(r.rating?.karma);
 ---
 
 ## 4. Фаза 2 — Дизайн-система (чтобы всё дальше сразу было «как на Android»)
-Оценка: 2–3 недели. Источник: `ui/theme/*`, `ui/preferences/*`, `ui/fonts/*`.
+Оценка: 2–3 недели. Источник: `ui/theme/*`, `ui/preferences/*`, `ui/fonts/*`. **Статус на 2026-10-07: ✅ закрыта в коде; проверка на устройстве.**
 
-- 🟡 Токены `WMTokens`, `Colors`, `Shapes`, `Typography` — частично (Classic).
-- ⬜ Все 40 `ThemeVariant` (Classic, Ocean, Purple, Monochrome, Nord, Dracula, Material You → на iOS аналог: акцент из выбора, тематические Stranger Things…Onyx Gold) — сгенерировать скриптом из `ThemeVariant.kt` (1 448 строк).
-- ⬜ `ThemeManager` + `CustomizationManager` + `ThemeRepository` + `ThemeProfileRepository` (синхронизация темы с сервером).
-- ⬜ `ThemeOneClickPacks` (готовые наборы).
-- ⬜ Стили пузырей (`BubbleStyle`, `BubbleStyles.kt` 859 строк, `MessageBubbleStyle`, `AdaptiveBubbleColor`).
-- ⬜ Анимации сообщений (`MessageAnimationStyle`), `Effects`, `VisualEffects`, `ExpressiveComponents`.
-- ⬜ Анимированные фоны: `AnimatedBackground`, `ChatAnimatedBackground` (964 строки, все `AnimatedBgVariant`), `DefaultChatBackground`, `BackgroundImage` — на Skia.
-- ⬜ Шрифты: 25 семейств, `FontStyle`, `ChatFontCatalog`, `CustomFontLoader`, `SenderFontCache` (шрифт отправителя в чужих пузырях).
-- ⬜ `UIStylePreferences` (UIStyle, ChannelViewStyle, быстрая реакция), `AppModePreferences` (FULL/LITE).
-- ⬜ Общие компоненты `ui/components`: `WMToast`, `WMLoadingIndicator`, `WMLoadingAnimation` (Lottie-талисман), `WMPullToRefreshIndicator`, `WMErrorScreen`, `WMClickableText`, `CommonComponents`, `AboutAppDialog`.
-- ⬜ Звуки: 19 WAV из `res/raw` + `SoundLibrary` (выбор звука уведомлений и in-chat).
-- ⬜ Экран настроек темы `ThemeSettingsScreen` (3 433 строки) + `ThemeBackgroundSection`, `AnimatedBackgroundSection`, `QuickThemeToggle`.
-- ⬜ Онбординг выбора стиля `UIStyleOnboardingActivity`.
+Генератор: `scripts/gen-android-theme.mjs` → `src/theme/gen/` (50 тем + палитры + градиенты, 59 базовых цветов `Colors.kt`, 15 пресетов фона, 27 готовых паков, ключи локализованных названий).
+
+- ✅ Компоненты Material 3 — `react-native-paper` (тот же набор, что Compose M3: кнопки, свитчи, радио, диалоги, поля, AppBar). Тема Paper собирается из нашей схемы (`toPaperTheme`), уровни elevation → роли `surfaceContainer*`, как в Compose BOM 2026.
+- ✅ `Theme.kt` → `src/theme/wmTheme.ts`: `createLight/DarkColorScheme` тем же алгоритмом (тональные поверхности = нейтральная основа + доля основного цвета), `ExtendedColors`, `effectiveDark` (prefersDark=false → всегда светлая).
+- ✅ Все **50** `ThemeVariant` (в плане было 40 — на Android их уже 50), PRO/подписка, светлые/тёмные; `CYBERPUNK` скрыт из выбора, как на Android. `MATERIAL_YOU` скрыт (на iOS нет цветов обоев — Android тоже скрывает его на < 12).
+- ✅ `Typography.kt` (`WMTypography`, `WMTextStyles`), `Shapes.kt` (`Shapes`, `WMShapes`), `WMTokens.kt` (`WMSpacing`, `WMCorners`, пружины `WMMotion` 1:1 из ExpressiveMotionTokens).
+- ✅ `ThemeManager` + `ThemeRepository` + `ThemeProfileRepository` (`src/theme/themeManager.ts`): состояние, смена/сброс, системный режим, синхронизация на сервер с дебаунсом, подтягивание один раз на аккаунт, «поделиться кодом»/импорт. iOS использует профиль платформы `android` (бэкенд знает только android|windows; ключи тем/пузырей/фонов у iOS те же) — тема с Android-телефона приезжает на iPhone.
+- ✅ Старый `useTheme()` (26 ранних экранов) теперь вычисляется из новой темы — они тоже следуют выбранной теме. Старая палитра на 7 тем (`theme/colors.ts`) удалена.
+- ✅ `ThemeOneClickPacks` — 27 паков (бесплатные/PRO), применение одним тапом.
+- ✅ 20 стилей пузырей `BubbleStyles.kt` → `components/bubbles/StyledBubble.tsx` (формы, тени, рамки, градиенты; COMIC и FOLDED — контуром на Skia; PULSE/SHIMMER — анимации Reanimated). `AdaptiveBubbleColor` → `theme/adaptiveBubbleColor.ts` (яркость обоев через Skia).
+- ✅ 11 анимированных фонов `ChatAnimatedBackground.kt` → Skia Picture на UI-потоке; «случайные» позиции звёзд/частиц через `java.util.Random` с теми же seed — совпадают с Android. `AnimatedBgPrefs`, режим производительности отключает.
+- ✅ `DefaultChatBackground` (mesh-градиент + гекс-точки, Skia), `BackgroundImage` (обои 30% / пресет 8% / по умолчанию), градиент темы.
+- ✅ Шрифты: 25 шрифтов чата (`@expo-google-fonts`, только нужные начертания, ленивая загрузка), фирменные `AppFonts` (Exo 2 400/700, Russo One, Righteous, Orbitron 700), загрузка своего шрифта по URL, `SenderFontCache` (шрифт отправителя у других), 34 Unicode-стиля `FontStyle`/`FontStyleConverter`.
+- ✅ `UIStylePreferences` (стиль списка, пузыри, быстрая реакция, вид каналов, шрифт, свои шрифты, онбординг), `AppModePreferences` (FULL/LITE), `SandboxPreferences` (4 тапа).
+- ✅ Общие компоненты: `WMToast` + хост (тосты ядра тоже через него), `WMLoadingIndicator`/`WMBouncingDots`/`WMFullScreenLoading`/`WMInlineLoader`, `WMLoadingAnimation` (эквалайзер / точки в режиме производительности), `WMErrorScreen`/`WMErrorCard`, pull-to-refresh, `GradientButton`, `UnreadBadge`, `PulsingBadge`, `TypingIndicator`, `ExpressiveFAB`, `ExpressiveIconButton`, `GlassTopAppBar`, `ChatGlassCard`.
+- ✅ Звуки: 17 WAV из `res/raw` (в iOS были пустые 44-байтные заглушки!) + рингтон/гудок звонка, синтезированные теми же тонами, что Windows `callSounds.ts` (`scripts/synth-call-sounds.mjs`); `SoundLibrary` с предпрослушиванием; звуки уведомлений зарегистрированы для push.
+- ✅ Экран «Тема и оформление» (`features/themeSettings`): хаб 7 категорий, режим приложения, паки, основной UI (темы, сброс, поделиться/импорт, тёмная/системная, пресеты и своё фото фона, анимированный фон с PRO-замком и пробным периодом 5 дней, пузыри, шрифт чата + загрузка своего, стиль интерфейса, быстрая реакция), каналы (вид + плитка премиум-дизайна), звуки. Вход — Настройки → Тема.
+- ✅ Онбординг `UIStyleOnboardingActivity` (режим → стиль списка), показывается один раз после первого входа.
+- ✅ `QuickThemeToggle` (переключатель для бокового меню — подключить в фазе 3 вместе с drawer).
+- ⏭️ Не переносится (на Android не используется): `CustomizationManager` (`MessageBubbleStyle`, `MessageAnimationStyle`, `FontVariant`), `Effects.kt` (`WMGradients/WMShadows/WMBlur/WMGlow`), `ShimmerEffect`, `WMSearchBar`, `GlassmorphicCard`, `UserAvatar` (composable).
+- ⬜ Экраны «Рамки звонков» и «Рамки видеосообщений» — заглушки маршрутов; переносятся в фазах 8 и 3 вместе со звонками/кружками.
+- ⬜ Экран «Дизайн премиум-каналов» — заглушка; фаза 6.
+- 🟡 Lottie: ассеты (талисман Shitzu ×15, эмоции, лоадер) скопированы в `assets/lottie`, `lottie-react-native` установлен; использование — по месту в фазах 3/10 (боты).
 
 ---
 
@@ -485,3 +495,4 @@ iOS = объединение Android + Windows. Источник — `C:\project
 | 2026-10-07 | Составлен план. Найдено: публичный репо с закоммиченными SERVER_KEY/SITE_ENCRYPT_KEY. |
 | 2026-10-07 | **Фаза 1, фундамент.** Генераторы: строки (5 172 ключа ×3), Android API-зеркало (454 метода, 529 моделей, Gson-совместимый разбор), Room → SQLCipher-БД (8 таблиц), Windows `api.ts` → RN (341 функция). Секреты убраны из кода → `app.config.js` + `secretsProvider` + CI-секрет. Единый refresh токена. Сокет: все события через `onAny`, каталог 123 событий, фикс авторизации старым токеном. Карма: логика `features/karma`. Ключ в публичном репо — **тот же, что в Android `local.properties`, т.е. живой** → ротировать. |
 | 2026-10-07 | **Фаза 1 закрыта.** UserSession (все поля), AccountManager + раздельные ключи E2EE по аккаунтам, prefs/cache/performance/storage, WMApplication-инициализация, NetworkQualityMonitor/TypeDetector, ErrorHandler, CrashReporter, cert pinning (найдено: leaf-пины Android устарели), LanguageManager (дефолт uk), бесконечный адаптивный реконнект сокета, проактивный refresh. Добавлен раздел 5.6 — функции, которые есть только в Windows. |
+| 2026-10-07 | **Фаза 2 закрыта.** Генератор тем (50 тем, 15 фонов, 27 паков), тема M3 (Paper) по алгоритму Theme.kt, синхронизация темы с Android-профилем, 20 стилей пузырей, 11 анимированных фонов (Skia, те же seed), фон по умолчанию, 25 шрифтов + свои + шрифт отправителя, 34 Unicode-стиля, звуки (вместо пустых заглушек) + рингтон как в Windows, общие компоненты, экран «Тема и оформление», онбординг. |
