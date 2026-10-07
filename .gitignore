@@ -14,8 +14,8 @@ node_modules/
 # ios/ и android/ создаёт `npx expo prebuild` из app.json. Держать их в git
 # нельзя: правки в app.json тогда молча не применяются, а конфликты в
 # Xcode-проекте и Podfile.lock неразрешимы.
-ios/
-android/
+/ios/
+/android/
 
 # ─── Expo / Metro ────────────────────────────────────────────────────────────
 .expo/

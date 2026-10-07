@@ -1,0 +1,6 @@
+коллизия имени модели AiSummaryResponse: data\model\AiSummaryModels.kt vs network\NodeChannelApi.kt
+коллизия имени модели Pagination: data\model\StrapiModels.kt vs data\repository\GiphyRepository.kt
+коллизия имени модели LinkPreviewData: data\model\User.kt vs network\NodeApi.kt
+коллизия имени модели LinkPreviewResponse: data\model\User.kt vs network\NodeApi.kt
+коллизия имени модели Success: data\repository\ThemeProfileRepository.kt vs network\MediaUploader.kt
+дефолт не распознан (NodeApi.kt): okhttp3.RequestBody.create(null, "true")
