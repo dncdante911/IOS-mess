@@ -162,6 +162,19 @@ export class E2EEService {
     this.nodeApi = nodeApi;
   }
 
+  /**
+   * Сброс всего состояния в памяти при смене аккаунта — порт Android
+   * E2EEService.resetForAccountSwitch(): иначе кеши общих секретов и флаг
+   * регистрации остались бы от предыдущего аккаунта.
+   */
+  resetForAccountSwitch(): void {
+    this.peerLocks.clear();
+    this.skCache.clear();
+    this.ekCache.clear();
+    this.recoveredSlots.clear();
+    this.serverRegistrationVerified = false;
+  }
+
   private lockFor(userId: number): AsyncMutex {
     let m = this.peerLocks.get(userId);
     if (!m) {
@@ -399,7 +412,7 @@ export class E2EEService {
     await this.ensureRegistered(myUserIdHint || 0);
 
     const plain = await this.lockFor(senderId).withLock(() =>
-      this.decryptInternal(senderId, ciphertextB64, ivB64, tagB64, headerJson, msgId, false),
+      this.decryptInternal(senderId, ciphertextB64, ivB64, tagB64, headerJson, Number(msgId) || 0, false),
     );
 
     // Расшифровали чужое — кладём в кеш, чтобы не повторять при каждой прокрутке.

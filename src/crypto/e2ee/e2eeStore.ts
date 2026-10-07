@@ -49,7 +49,66 @@ export const KEY_RIK = (uid: number, slot: string) => `e2ee_rik_${uid}_${slot}`;
 export const KEY_RSPK = (uid: number, slot: string) => `e2ee_rspk_${uid}_${slot}`;
 
 /** Индекс всех созданных слотов, чтобы уметь чистить их пачкой. */
-const INDEX_KEY = 'e2ee_slot_index';
+const INDEX_KEY_BASE = 'e2ee_slot_index';
+
+// ─── Мультиаккаунт: свой ключевой материал у каждого аккаунта ─────────────────
+//
+// Android хранит Signal-ключи в отдельном файле на userId (SignalKeyStore),
+// поэтому у каждого аккаунта в свичере своя identity. Здесь раньше был один
+// набор ключей на устройство — второй аккаунт шифровал бы чужим IK.
+//
+// ⚠️ Существующие ключи НЕ переименовываются: аккаунт, который первым
+// использовал E2EE на этом устройстве («владелец наследия»), продолжает читать
+// ключи без префикса — переименование identity-ключа = риск потерять историю.
+// Все остальные аккаунты получают префикс u<uid>_.
+const LEGACY_OWNER_KEY = 'e2ee_legacy_owner_uid';
+let activeUid = 0;
+let legacyOwner: number | null = null;
+
+async function loadLegacyOwner(): Promise<number | null> {
+  if (legacyOwner !== null) return legacyOwner;
+  try {
+    const raw = await AsyncStorage.getItem(LEGACY_OWNER_KEY);
+    legacyOwner = raw ? Number(raw) : null;
+  } catch {
+    legacyOwner = null;
+  }
+  return legacyOwner;
+}
+
+/**
+ * Переключает пространство ключей на аккаунт uid. Вызывать ДО любых операций
+ * E2EE (вход, восстановление сессии, переключение аккаунта).
+ */
+export async function setE2EEAccount(uid: number): Promise<void> {
+  activeUid = uid;
+  const owner = await loadLegacyOwner();
+  if (owner === null && uid > 0) {
+    // Первый аккаунт с E2EE на устройстве: если ключи без префикса уже есть
+    // (установка до появления мультиаккаунта) — они его.
+    legacyOwner = uid;
+    try {
+      await AsyncStorage.setItem(LEGACY_OWNER_KEY, String(uid));
+    } catch {
+      /* в худшем случае определим заново при следующем запуске */
+    }
+  }
+}
+
+export function getE2EEAccount(): number {
+  return activeUid;
+}
+
+/** Имя ключа в Keychain с учётом аккаунта. */
+function scoped(key: string): string {
+  if (!key.startsWith('e2ee_') || key === LEGACY_OWNER_KEY) return key;
+  if (activeUid <= 0 || legacyOwner === null || legacyOwner === activeUid) return key;
+  return `u${activeUid}_${key}`;
+}
+
+function indexKey(): string {
+  return scoped(INDEX_KEY_BASE);
+}
 
 /**
  * Кеш расшифрованных текстов, ключ — id сообщения.
@@ -106,7 +165,7 @@ async function clearMessageCache(): Promise<void> {
 
 export async function secureGet<T>(key: string): Promise<T | null> {
   try {
-    const raw = await SecureStore.getItemAsync(key, SECURE_OPTIONS);
+    const raw = await SecureStore.getItemAsync(scoped(key), SECURE_OPTIONS);
     if (raw == null) return null;
     return JSON.parse(raw) as T;
   } catch (e) {
@@ -119,12 +178,12 @@ export async function secureGet<T>(key: string): Promise<T | null> {
 }
 
 export async function secureSet(key: string, value: unknown): Promise<void> {
-  await SecureStore.setItemAsync(key, JSON.stringify(value), SECURE_OPTIONS);
+  await SecureStore.setItemAsync(scoped(key), JSON.stringify(value), SECURE_OPTIONS);
 }
 
 export async function secureRemove(key: string): Promise<void> {
   try {
-    await SecureStore.deleteItemAsync(key, SECURE_OPTIONS);
+    await SecureStore.deleteItemAsync(scoped(key), SECURE_OPTIONS);
   } catch {
     // Удаление несуществующего ключа — не ошибка.
   }
@@ -148,7 +207,7 @@ export async function secureGetSoft<T>(key: string): Promise<T | null> {
 
 async function readIndex(): Promise<string[]> {
   try {
-    const raw = await AsyncStorage.getItem(INDEX_KEY);
+    const raw = await AsyncStorage.getItem(indexKey());
     return raw ? (JSON.parse(raw) as string[]) : [];
   } catch {
     return [];
@@ -157,7 +216,7 @@ async function readIndex(): Promise<string[]> {
 
 async function writeIndex(keys: string[]): Promise<void> {
   try {
-    await AsyncStorage.setItem(INDEX_KEY, JSON.stringify(keys));
+    await AsyncStorage.setItem(indexKey(), JSON.stringify(keys));
   } catch (e) {
     console.warn('[E2EE/store] не удалось обновить индекс слотов:', e);
   }

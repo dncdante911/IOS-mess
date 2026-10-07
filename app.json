@@ -110,7 +110,7 @@
         "expo-sqlite",
         {
           "enableFTS": true,
-          "useSQLCipher": false
+          "useSQLCipher": true
         }
       ],
       "expo-secure-store",

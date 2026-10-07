@@ -96,19 +96,13 @@ let _refreshPromise: Promise<string | null> | null = null;
 async function tryRefresh(): Promise<string | null> {
   if (_refreshPromise) return _refreshPromise;
 
+  // Единая точка обновления для ВСЕХ сетевых слоёв (axios, core/api, core/android):
+  // refresh-токен ротируется, два параллельных обновления выбили бы сессию.
+  // Очистку хранилища и AUTH_FAILURE_EVENT при неудаче делает Session.refresh().
   _refreshPromise = (async () => {
     try {
-      const refreshToken = await storageService.getRefreshToken();
-      if (!refreshToken) throw new Error('No refresh token');
-
-      // Import lazily to avoid circular dependency (authApi imports nodeApi)
-      const { refreshTokens } = await import('./authApi');
-      const result = await refreshTokens(refreshToken);
-      return result.accessToken;
-    } catch {
-      await storageService.clearAll();
-      authEventBus.emit(AUTH_FAILURE_EVENT);
-      return null;
+      const { Session } = await import('../core/session');
+      return await Session.refresh();
     } finally {
       _refreshPromise = null;
     }

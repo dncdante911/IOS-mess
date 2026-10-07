@@ -11,9 +11,16 @@ export const SOCKET_URL = 'https://worldmates.club:449/';
 export const NODE_BASE_URL = 'https://worldmates.club:449/';
 
 // ==================== SECURITY ====================
-export const SITE_ENCRYPT_KEY = '2ad9c757daccdfff436dc226779e20b719f6d6f8';
-export const SERVER_KEY =
-  'a8975daa76d7197ab87412b096696bb0e341eb4d-9bb411ab89d8a290362726fca6129e76-81746510';
+// Ключи больше НЕ хранятся в коде — см. app.config.js и security/secretsProvider.ts.
+// Геттеры, а не константы: значение расшифровывается лениво при первом обращении.
+export { SecretsProvider } from '../security/secretsProvider';
+
+// ==================== MEDIA / CDN ====================
+// Все медиа (фото, видео, голосовые, файлы, аватары) — в личном MinIO S3.
+// Стикеры, эмодзи, GIF-паки — в Strapi (cdn.worldmates.club → 192.168.0.21:1337),
+// сам Strapi хранит файлы тоже в MinIO. Порт Android StrapiClient.kt.
+export const STRAPI_BASE_URL = 'https://cdn.worldmates.club/';
+export const CDN_URL = 'https://cdn.worldmates.club';
 
 // ==================== PHP API QUERY PARAMETERS ====================
 export const AUTH_ENDPOINT = '?type=auth';

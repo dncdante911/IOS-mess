@@ -51,3 +51,6 @@ yarn-error.log*
 .idea/
 .vscode/
 *.swp
+
+# Секреты приложения (см. app.config.js). Шаблон — secrets.local.example.json
+secrets.local.json

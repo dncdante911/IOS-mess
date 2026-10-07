@@ -19,6 +19,7 @@
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import * as SecureStore from 'expo-secure-store';
+import * as Device from 'expo-device';
 
 import { randomUuid } from '../crypto/e2ee/primitives';
 
@@ -69,6 +70,7 @@ export function getDeviceLabel(): string {
   const osName = Platform.OS === 'ios' ? 'iOS' : Platform.OS;
   const osVersion = String(Platform.Version ?? '');
   const appVersion = Constants.expoConfig?.version ?? '1.0.0';
-  const deviceName = Platform.OS === 'ios' ? 'iPhone' : 'Device';
+  // Как Android DeviceInfo: модель устройства (например, "iPhone 15 Pro")
+  const deviceName = Device.modelName ?? (Platform.OS === 'ios' ? 'iPhone' : 'Device');
   return `${deviceName} / ${osName} ${osVersion} / v${appVersion}`;
 }

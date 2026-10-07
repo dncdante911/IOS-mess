@@ -8,6 +8,8 @@ import * as Font from 'expo-font';
 import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
 
 import AppNavigator from './src/navigation/AppNavigator';
+import './src/core/android';
+import { WMApplication } from './src/core/app';
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
@@ -18,6 +20,10 @@ export default function App() {
   useEffect(() => {
     async function prepare() {
       try {
+        // Аналог Android WMApplication.onCreate(): KV, язык, прокси, сессия,
+        // мультиаккаунт, производительность, кеш, монитор сети, краш-репортер.
+        await WMApplication.onCreate();
+
         // Pre-load fonts
         await Font.loadAsync({
           ...Ionicons.font,

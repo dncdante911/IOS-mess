@@ -53,6 +53,20 @@ jobs:
       - name: Права на бинарники
         run: chmod -R +x node_modules/.bin || true
 
+      # Секреты (server_key, Strapi-токен, GIPHY, Maps…) в репозитории НЕТ —
+      # он публичный. Берём из GitHub Secret IOS_SECRETS_JSON (содержимое
+      # secrets.local.json, шаблон — secrets.local.example.json). app.config.js
+      # зашифрует их в бандл так же, как Android build.gradle.
+      - name: Секреты
+        env:
+          IOS_SECRETS_JSON: ${{ secrets.IOS_SECRETS_JSON }}
+        run: |
+          if [ -z "$IOS_SECRETS_JSON" ]; then
+            echo "::warning::IOS_SECRETS_JSON не задан — сборка без ключей API"
+          else
+            printf '%s' "$IOS_SECRETS_JSON" > secrets.local.json
+          fi
+
       # Генерирует папку ios/ из app.json. В репозитории её нет и быть не должно:
       # это производный артефакт, который Expo пересоздаёт под текущие плагины.
       - name: Expo prebuild

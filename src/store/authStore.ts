@@ -19,6 +19,8 @@ import { socketService } from '../services/socketService';
 import { useThemeStore } from '../theme';
 import { useI18nStore } from '../i18n';
 import type { User } from '../api/types';
+import { UserSession } from '../core/session';
+import { AccountManager } from '../core/accountManager';
 
 // ─────────────────────────────────────────────────────────────
 // TYPES
@@ -92,6 +94,18 @@ async function persistAndConnect(
   expiresAtMs: number,
 ): Promise<void> {
   await storageService.saveFullSession(accessToken, refreshToken, expiresAtMs, user.id, user);
+  await UserSession.saveSession({
+    token: accessToken,
+    id: user.id,
+    username: user.username,
+    avatar: user.avatar,
+    isPro: user.isPro ? 1 : 0,
+    proType: user.proType ?? 0,
+    refreshToken,
+    tokenExpiresAt: expiresAtMs,
+  });
+  // Мультиаккаунт: каждый вход фиксируется в свичере (Android: saveCurrentSessionAsAccount)
+  await AccountManager.saveCurrentSessionAsAccount().catch(() => {});
   socketService.connect(accessToken);
   scheduleE2EERegistration(Number(user.id) || 0);
 }
@@ -109,8 +123,10 @@ async function persistAndConnect(
  */
 function scheduleE2EERegistration(myUserId: number): void {
   // Ленивый импорт: криптография не тянется в стартовый бандл.
-  Promise.all([import('../crypto/e2ee/e2eeService'), import('../api/signalApi')])
-    .then(([{ initE2EE }, { signalApi }]) => {
+  Promise.all([import('../crypto/e2ee/e2eeService'), import('../api/signalApi'), import('../crypto/e2ee/e2eeStore')])
+    .then(async ([{ initE2EE }, { signalApi }, { setE2EEAccount }]) => {
+      // Ключи E2EE — свои у каждого аккаунта (как SignalKeyStore на Android)
+      await setE2EEAccount(myUserId);
       const service = initE2EE(signalApi);
       return service.ensureRegistered(myUserId);
     })
@@ -326,8 +342,11 @@ export const useAuthStore = create<AuthState>()(
     // ── Logout ───────────────────────────────────────────────
     logout: async () => {
       set((s) => { s.isLoading = true; });
+      // Android: AccountManager.wipeAllLocalDataForLogout() строго ДО clearSession()
+      await AccountManager.wipeAllLocalDataForLogout().catch((e) => console.warn('[Auth] wipe:', e));
       socketService.disconnect();
       await storageService.clearAll();
+      await UserSession.clearSession();
       // ⚠️ Ключи E2EE здесь НАМЕРЕННО не стираются.
       //
       // Android при выходе вызывает SignalKeyStore.wipeForLogout() и удаляет
@@ -369,6 +388,7 @@ export const useAuthStore = create<AuthState>()(
 
         await useThemeStore.getState()._hydrate();
         await useI18nStore.getState()._hydrate();
+        if (!UserSession.isLoggedIn) UserSession.set(token, user.id);
         socketService.connect(token);
         // При восстановлении сессии E2EE инициализируется так же, как при
         // входе: сервер мог потерять наш бандл, пока приложение было закрыто.

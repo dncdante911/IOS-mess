@@ -66,8 +66,16 @@ import {
 // RECONNECTION CONFIG
 // ─────────────────────────────────────────────────────────────
 
-const MAX_RECONNECT_ATTEMPTS = 5;
-const RECONNECT_BASE_DELAY_MS = 1_000; // doubled each attempt: 1s, 2s, 4s, 8s, 16s
+import { useConnectionState } from '../core/network';
+
+function adaptiveDelay(): { min: number; max: number } {
+  switch (useConnectionState.getState().quality) {
+    case 'EXCELLENT': return { min: 500, max: 2_000 };
+    case 'GOOD': return { min: 1_000, max: 5_000 };
+    case 'POOR': return { min: 2_000, max: 10_000 };
+    default: return { min: 5_000, max: 20_000 };
+  }
+}
 
 // ─────────────────────────────────────────────────────────────
 // SOCKET SERVICE CLASS
@@ -78,6 +86,7 @@ class SocketService {
   private token: string | null = null;
   private userId: string | null = null;
   private reconnectAttempts = 0;
+  private lastForcedReconnectAt = 0;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private isManualDisconnect = false;
 
@@ -94,6 +103,10 @@ class SocketService {
    * @param uid    Numeric user ID string
    */
   connect(token: string, uid?: string): void {
+    // Токен обновляем ДО раннего выхода: после refresh сокет ещё жив, и join
+    // должен уйти уже с новым токеном, а не со старым.
+    this.token = token;
+    if (uid !== undefined) this.userId = uid;
     if (this.socket?.connected) {
       // Already connected — re-authenticate in case the room map was reset.
       this._authenticateSocket();
@@ -418,12 +431,7 @@ class SocketService {
       });
 
       this._registerCoreHandlers();
-      this._registerMessageHandlers();
-      this._registerStatusHandlers();
-      this._registerGroupHandlers();
-      this._registerChannelHandlers();
-      this._registerStoryHandlers();
-      this._registerE2EEHandlers();
+      this._registerAllServerEvents();
     } catch (err) {
       console.error('[SocketService] Failed to create socket:', err);
     }
@@ -463,110 +471,26 @@ class SocketService {
     });
   }
 
-  private _registerMessageHandlers(): void {
+  /**
+   * ВСЕ серверные события пробрасываются в шину через onAny — так iOS получает
+   * ровно тот же набор, что Android (SocketManager + MessageNotificationService +
+   * CallsViewModel + CallTransferManager слушают ~90 событий: звонки, группы,
+   * каналы, livestream, signal:*, login:*, …). Подписка по одному событию
+   * раньше пропускала больше половины. Полный каталог — core/socket/events.ts.
+   */
+  private _registerAllServerEvents(): void {
     if (!this.socket) return;
+    this.socket.onAny((event: string, ...args: unknown[]) => {
+      this.emitter.emit(event, ...args);
+    });
 
-    const bubble = (event: string) => {
-      this.socket!.on(event, (data: unknown) => this.emitter.emit(event, data));
-    };
-
-    // Private messages
-    bubble(SOCKET_EVENT_PRIVATE_MESSAGE);
-    bubble(SOCKET_EVENT_PRIVATE_MESSAGE_PAGE);
-    bubble(SOCKET_EVENT_PAGE_MESSAGE);
-    bubble(SOCKET_EVENT_NEW_MESSAGE);
-    // Message mutations
-    bubble(SOCKET_EVENT_MESSAGE_EDITED);
-    bubble(SOCKET_EVENT_MESSAGE_DELETED);
-    bubble(SOCKET_EVENT_MESSAGE_REACTION);
-    bubble(SOCKET_EVENT_MESSAGE_PINNED);
-    bubble(SOCKET_EVENT_PRIVATE_HISTORY_CLEARED);
-    // Group messages
-    bubble(SOCKET_EVENT_GROUP_MESSAGE);
-    bubble(SOCKET_EVENT_GROUP_MESSAGE_EDITED);
-    bubble(SOCKET_EVENT_GROUP_MESSAGE_DELETED);
-    bubble(SOCKET_EVENT_GROUP_HISTORY_CLEARED);
-    // Channel
-    bubble(SOCKET_EVENT_CHANNEL_MESSAGE);
-  }
-
-  private _registerStatusHandlers(): void {
-    if (!this.socket) return;
-
-    const bubble = (event: string) => {
-      this.socket!.on(event, (data: unknown) => this.emitter.emit(event, data));
-    };
-
-    bubble(SOCKET_EVENT_TYPING);
-    bubble(SOCKET_EVENT_TYPING_DONE);
-    bubble(SOCKET_EVENT_RECORDING);
-    bubble(SOCKET_EVENT_LAST_SEEN);
-    bubble(SOCKET_EVENT_MESSAGE_SEEN);
-    bubble(SOCKET_EVENT_USER_ACTION);
-    bubble(SOCKET_EVENT_GROUP_USER_ACTION);
-    bubble(SOCKET_EVENT_USER_ONLINE);
-    bubble(SOCKET_EVENT_USER_OFFLINE);
-    bubble(SOCKET_EVENT_STARS_RECEIVED);
-    // Legacy WoWonder status change (parses HTML)
-    this.socket.on('user_status_change', (data: unknown) =>
-      this.emitter.emit('user_status_change', data),
-    );
-
-    // Live location
-    bubble(SOCKET_EVENT_LIVE_LOCATION_START);
-    bubble(SOCKET_EVENT_LIVE_LOCATION_UPDATE);
-    bubble(SOCKET_EVENT_LIVE_LOCATION_STOP);
-  }
-
-  private _registerGroupHandlers(): void {
-    if (!this.socket) return;
-
-    const bubble = (event: string) => {
-      this.socket!.on(event, (data: unknown) => this.emitter.emit(event, data));
-    };
-
-    bubble(SOCKET_EVENT_GROUP_TYPING);
-    bubble(SOCKET_EVENT_GROUP_TYPING_DONE);
-  }
-
-  private _registerChannelHandlers(): void {
-    if (!this.socket) return;
-
-    const bubble = (event: string) => {
-      this.socket!.on(event, (data: unknown) => this.emitter.emit(event, data));
-    };
-
-    bubble(SOCKET_EVENT_CHANNEL_POST_CREATED);
-    bubble(SOCKET_EVENT_CHANNEL_POST_UPDATED);
-    bubble(SOCKET_EVENT_CHANNEL_POST_DELETED);
-    bubble(SOCKET_EVENT_CHANNEL_COMMENT_ADDED);
-    bubble(SOCKET_EVENT_CHANNEL_STREAM_STARTED);
-    bubble(SOCKET_EVENT_CHANNEL_STREAM_ENDED);
-    bubble(SOCKET_EVENT_CHANNEL_TYPING);
-  }
-
-  private _registerStoryHandlers(): void {
-    if (!this.socket) return;
-
-    const bubble = (event: string) => {
-      this.socket!.on(event, (data: unknown) => this.emitter.emit(event, data));
-    };
-
-    bubble(SOCKET_EVENT_STORY_CREATED);
-    bubble(SOCKET_EVENT_STORY_DELETED);
-    bubble(SOCKET_EVENT_STORY_COMMENT_ADDED);
-  }
-
-  private _registerE2EEHandlers(): void {
-    if (!this.socket) return;
-
-    const bubble = (event: string) => {
-      this.socket!.on(event, (data: unknown) => this.emitter.emit(event, data));
-    };
-
-    bubble(SOCKET_EVENT_SIGNAL_IDENTITY_CHANGED);
-    bubble(SOCKET_EVENT_GROUP_MEMBER_JOINED);
-    bubble(SOCKET_EVENT_GROUP_MEMBER_LEFT);
+    // token_expired: сервер отклонил токен сокета → обновляем и переподключаемся
+    this.socket.on('token_expired', () => {
+      void import('../core/session').then(async ({ Session }) => {
+        const fresh = await Session.refresh();
+        if (fresh) this.connect(fresh);
+      });
+    });
   }
 
   /**
@@ -579,24 +503,17 @@ class SocketService {
   }
 
   /**
-   * Schedule a reconnection attempt using exponential back-off.
-   * Stops after MAX_RECONNECT_ATTEMPTS failures.
+   * Переподключение БЕЗ лимита попыток (как Android SocketManager: «keep trying
+   * until the server comes back») с адаптивной задержкой по качеству сети:
+   *   EXCELLENT 0.5–2 с · GOOD 1–5 с · POOR 2–10 с · OFFLINE 5–20 с
+   * Раньше iOS сдавался после 5 попыток навсегда — до перезапуска приложения.
    */
   private _scheduleReconnect(): void {
     if (this.isManualDisconnect) return;
-    if (this.reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-      console.warn('[SocketService] Max reconnect attempts reached');
-      this.emitter.emit('socket:reconnect_failed');
-      return;
-    }
-
     this._clearReconnectTimer();
     this.reconnectAttempts += 1;
-    const delay = RECONNECT_BASE_DELAY_MS * 2 ** (this.reconnectAttempts - 1);
-    console.log(
-      `[SocketService] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})`,
-    );
-
+    const { min, max } = adaptiveDelay();
+    const delay = Math.min(max, min * 2 ** Math.min(this.reconnectAttempts - 1, 6));
     this.reconnectTimer = setTimeout(() => {
       if (!this.isManualDisconnect && this.token) {
         this.socket?.disconnect();
@@ -604,6 +521,26 @@ class SocketService {
         this._createSocket();
       }
     }, delay);
+  }
+
+  /**
+   * Немедленное переподключение (возврат из фона, появление сети) — Android
+   * делает то же по onAvailable, с дебаунсом 5 с.
+   */
+  forceReconnect(): void {
+    if (this.isManualDisconnect || !this.token) return;
+    if (this.socket?.connected) {
+      this._authenticateSocket();
+      return;
+    }
+    const now = Date.now();
+    if (now - this.lastForcedReconnectAt < 5_000) return;
+    this.lastForcedReconnectAt = now;
+    this._clearReconnectTimer();
+    this.reconnectAttempts = 0;
+    this.socket?.disconnect();
+    this.socket = null;
+    this._createSocket();
   }
 
   private _clearReconnectTimer(): void {
