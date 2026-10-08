@@ -17,6 +17,7 @@
  * Время истечения токена хранится в МИЛЛИСЕКУНДАХ (на Android — секунды);
  * isTokenExpiringSoon учитывает это.
  */
+import { useSyncExternalStore } from 'react';
 import * as SecureStore from 'expo-secure-store';
 import { kv } from './platform/kv';
 import { setTokenRefresher } from './api';
@@ -50,7 +51,7 @@ export interface StoredTokens {
   username: string | null;
 }
 
-type Field = 'accessToken' | 'avatar' | 'starsBalance' | 'statusEmoji' | 'statusText' | 'session';
+export type Field = 'accessToken' | 'avatar' | 'starsBalance' | 'statusEmoji' | 'statusText' | 'session';
 type Listener = () => void;
 
 const state = {
@@ -370,3 +371,11 @@ export function onTokensUpdated(h: (uid: number, token: string) => void): void {
 export const Session = UserSession;
 
 setTokenRefresher(() => UserSession.refresh());
+
+/**
+ * React-подписка на поле сессии — аналог `UserSession.avatarFlow.collectAsState()`.
+ * read должен возвращать примитив/стабильную ссылку (useSyncExternalStore).
+ */
+export function useSessionField<T>(field: Field, read: () => T): T {
+  return useSyncExternalStore((l) => UserSession.subscribe(field, l), read, read);
+}

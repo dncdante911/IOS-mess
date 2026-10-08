@@ -17,3 +17,16 @@ export function luminance(hex: string): number {
 
 /** Плотность Android-экрана, под которую рисовались px-значения Canvas (xxhdpi). */
 export const ANDROID_REFERENCE_DENSITY = 3;
+
+/**
+ * android.graphics.Color.parseColor для строк с сервера: «#RRGGBB» → как есть,
+ * «#AARRGGBB» → RN-формат «#RRGGBBAA». Иначе — null (вызывающий берёт fallback,
+ * как catch в Kotlin).
+ */
+export function parseAndroidColor(s: string | null | undefined): string | null {
+  if (!s) return null;
+  const m = /^#([0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.exec(s.trim());
+  if (!m) return null;
+  const h = m[1];
+  return h.length === 6 ? `#${h}` : `#${h.slice(2)}${h.slice(0, 2)}`;
+}

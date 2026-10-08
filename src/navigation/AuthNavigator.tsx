@@ -12,7 +12,12 @@ import { useAuthStore } from '../store/authStore';
 
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 
-export function AuthNavigator() {
+/**
+ * initialRouteName = 'Login' — вход во ВТОРОЙ аккаунт из свичера (Android:
+ * LoginActivity с EXTRA_ADD_ACCOUNT): текущая сессия не сбрасывается, новый
+ * вход сохраняется в AccountManager и становится активным.
+ */
+export function AuthNavigator({ initialRouteName = 'Splash' }: { initialRouteName?: keyof AuthStackParamList } = {}) {
   const deviceVerification = useAuthStore((s) => s.deviceVerification);
 
   // Экран кода перекрывает весь auth-стек, пока проверка не завершена.
@@ -24,7 +29,7 @@ export function AuthNavigator() {
 
   return (
     <AuthStack.Navigator
-      initialRouteName="Splash"
+      initialRouteName={initialRouteName}
       screenOptions={{
         headerShown: false,
         animation: 'slide_from_right',

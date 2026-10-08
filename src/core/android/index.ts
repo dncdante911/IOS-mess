@@ -15,3 +15,4 @@ export * as Models from './gen/models';
 export { HttpException, type RetrofitResponse, type MultipartPart, type RawResponseBody } from './retrofit';
 export { newModel, decodeModel, encodeModel } from './gson';
 export { Constants } from './gen/Constants';
+export * from './computed';

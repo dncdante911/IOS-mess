@@ -106,6 +106,9 @@ async function persistAndConnect(
   });
   // Мультиаккаунт: каждый вход фиксируется в свичере (Android: saveCurrentSessionAsAccount)
   await AccountManager.saveCurrentSessionAsAccount().catch(() => {});
+  // Папки списка чатов нового аккаунта
+  const { ChatOrganizationManager } = await import('../features/chats/chatOrganization');
+  ChatOrganizationManager.init(Number(user.id) || 0);
   // Тема с другого устройства — один раз на аккаунт (Android: WorldMatesThemedApp)
   void import('../theme/themeManager').then(({ ThemeProfileRepository }) => ThemeProfileRepository.pullProfileOnceIfNeeded());
   socketService.connect(accessToken);

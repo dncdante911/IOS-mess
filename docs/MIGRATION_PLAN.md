@@ -215,14 +215,19 @@ if (r.apiStatus === 200) showKarma(r.rating?.karma);
 Оценка: 5–7 недель. Самая большая фаза.
 
 ### 5.1 Главный экран (`ui/chats`, `ui/lite`)
-- 🟡 Список чатов (`ChatsScreenModern`, 1 844 строки) — есть базовый, нужно: свайп-действия (`ChatSwipeActions`), контекстное меню (`ChatContactMenu`), удаление (`DeleteChatDialog`), закреп/архив/mute, бейджи, онлайн, typing в списке.
-- ⬜ Папки чатов: `ChatOrganizationManager/UI`, серверные и общие папки (`ServerFolderViewModel`, `SharedFolderUI`).
-- ⬜ Боковое меню (drawer, `DrawerHeaderStyle`): профиль, аккаунты, тема, разделы Discover / Tools / Wallet / Help — Ads, Bot Store, Business Directory, Contacts, Drafts, Гео, Новости, Заметки, Premium, Рекомендуемые каналы, Возвраты, Stars, Тикеты, Пригласить друзей.
-- ⬜ `BottomNavBar` (вид как на Android, не системный таббар).
-- ⬜ `AccountSwitcherDialog`.
-- ⬜ Скрытые чаты и блокировка чатов (`ChatLockManager`).
-- ⬜ Lite-режим: `LiteMainScreen`, `LiteBottomBar`, `AppModeSelector`.
-- ⬜ Ряд историй над чатами (`PersonalStoriesRow`) — связано с фазой 7.
+- ✅ Данные: `ChatsViewModel` (кеш → REST, пагинация 50, превью E2EE v6/v1/v2, архив/скрытые на сервере, удаление ×3 с чисткой офлайн-кеша, бизнес-чаты, бейдж «Ответы», сокет), `GroupsViewModel.fetchGroups`, `ChannelsViewModel` (каталог, подписки + кеш `cached_channels`, подписка/отписка, 402), истории (личные + каналов), `LiveChannelTracker`, `PresenceTracker`.
+- ✅ `ChatsScreenModern`: пейджер 4 вкладок ↔ полоса папок (синхронизация в обе стороны), шапка сворачивается при прокрутке, автообновление 6 с, FAB по вкладке, фон темы, снекбары, обновление как в `onResume`.
+- ✅ Строки: `ModernChatCard`/`TelegramChatItem`/группы/`ChannelRepliesInboxItem`, каналы (`TelegramChannelItem`, `ChannelCard`, аватар, LIVE, подписка), `ChannelStoriesRow`, свайпы (`ChatSwipeActions`, жест сильнее пейджера), теги под чатом.
+- ✅ Контекстное меню (`ChatContactMenu`) + псевдоним, `DeleteChatDialog`, `ChatLockManager`, скрытые/архив.
+- ✅ Папки: `ChatOrganizationManager/UI` (лимит 10/50, теги, перенос), серверные/совместные (`ServerFolderViewModel`, `SharedFoldersSheet`: создать/изменить/поделиться/вступить/выйти/удалить).
+- ✅ `UnifiedSearchDialog` (люди + каналы, каталог при пустом запросе).
+- ✅ Боковое меню: шапка (12 пресетов с декором Skia / своё фото / тема), кольцо историй, лента историй, аккаунты, все разделы, тема одним касанием. Карточка APK-обновления на iOS не нужна.
+- ✅ `AppBottomNavBar` (стеклянная таблетка, индикатор-пружина, аватар), `AccountSwitcherDialog`, «Добавить аккаунт» (вход без сброса сессии, перезапуск данных по смене userId).
+- ✅ `ChannelRepliesActivity` (ответы на комментарии: пагинация, живые ответы, ответ из списка, KARMA_RESTRICTED).
+- 🟡 `PremiumChannelListItem` — пока `ChannelCard`; настоящая карточка «Obsidian Gold» — с дизайн-системой премиум-каналов (фаза 6).
+- 🟡 Lite-режим (`LiteMainScreen`, `LiteBottomBar`, `AppModeSelector`) — нужны история звонков и создание группы → в фазе 8.
+- 🟡 Заглушки до своих фаз: вкладка «Контакты» (ContactPicker), создание группы/канала/истории, просмотр историй, редактирование группы, пункты меню (Новости, Бот-стор, Гео, Бизнес-каталог, Stars, Реклама, Возвраты, Тикеты, Черновики).
+- ℹ️ Находка: в Android `ModernChatCard(isLocked)` никогда не передаётся из списка — значок замка на заблокированных чатах не показывается. Повторено 1:1.
 
 ### 5.2 Экран переписки (`ui/messages`, ~22 000 строк)
 Типы сообщений:
@@ -496,3 +501,4 @@ iOS = объединение Android + Windows. Источник — `C:\project
 | 2026-10-07 | **Фаза 1, фундамент.** Генераторы: строки (5 172 ключа ×3), Android API-зеркало (454 метода, 529 моделей, Gson-совместимый разбор), Room → SQLCipher-БД (8 таблиц), Windows `api.ts` → RN (341 функция). Секреты убраны из кода → `app.config.js` + `secretsProvider` + CI-секрет. Единый refresh токена. Сокет: все события через `onAny`, каталог 123 событий, фикс авторизации старым токеном. Карма: логика `features/karma`. Ключ в публичном репо — **тот же, что в Android `local.properties`, т.е. живой** → ротировать. |
 | 2026-10-07 | **Фаза 1 закрыта.** UserSession (все поля), AccountManager + раздельные ключи E2EE по аккаунтам, prefs/cache/performance/storage, WMApplication-инициализация, NetworkQualityMonitor/TypeDetector, ErrorHandler, CrashReporter, cert pinning (найдено: leaf-пины Android устарели), LanguageManager (дефолт uk), бесконечный адаптивный реконнект сокета, проактивный refresh. Добавлен раздел 5.6 — функции, которые есть только в Windows. |
 | 2026-10-07 | **Фаза 2 закрыта.** Генератор тем (50 тем, 15 фонов, 27 паков), тема M3 (Paper) по алгоритму Theme.kt, синхронизация темы с Android-профилем, 20 стилей пузырей, 11 анимированных фонов (Skia, те же seed), фон по умолчанию, 25 шрифтов + свои + шрифт отправителя, 34 Unicode-стиля, звуки (вместо пустых заглушек) + рингтон как в Windows, общие компоненты, экран «Тема и оформление», онбординг. |
+| 2026-10-08 | **Фаза 3, главный экран (5.1).** Порт `ChatsScreenModern` + host `ChatsActivity` (Main → ChatsHome вместо системного таббара), боковое меню, нижний бар, папки локальные и совместные, поиск, контекстное меню, свайпы, ответы на комментарии, сторы групп/каналов/историй. В ядро: вычисляемые свойства Kotlin-моделей (`core/android/computed.ts` — генератор их терял: `channels`, `groups`, `_apiStatus`…), `WMBottomSheet` (свой Portal.Host — Paper-диалоги иначе под Modal на iOS), `WMModalDrawer`, `WMTabRow`, `SweepGradientBox`. Осталось в 5.1: Lite, премиум-карточка канала. |

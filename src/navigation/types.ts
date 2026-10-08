@@ -44,4 +44,21 @@ export type RootStackParamList = {
   PremiumChannelsTheme: undefined;
   CallFrameSettings: undefined;
   VideoMessageFrameSettings: undefined;
+  // Главный экран (порт ChatsActivity) и пункты бокового меню
+  Settings: undefined;
+  CallHistory: undefined;
+  Stories: undefined;
+  NewsList: undefined;
+  RecommendedChannels: undefined;
+  BotStore: undefined;
+  GeoDiscovery: undefined;
+  BusinessDirectory: undefined;
+  Stars: undefined;
+  Ads: undefined;
+  Refunds: undefined;
+  Tickets: undefined;
+  ChannelReplies: undefined;
+  AddAccount: undefined;
+  /** Временная заглушка экрана следующей фазы */
+  ComingSoon: { title: string };
 };

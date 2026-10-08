@@ -25,6 +25,9 @@ import { ThemeManager, ThemeProfileRepository } from '../theme/themeManager';
 import { UIStylePreferences, useUIStyle } from '../preferences/uiStyle';
 import { loadAppFonts, loadChatFont } from '../fonts/fonts';
 import { AnimatedBgPrefs } from '../theme/backgrounds/ChatAnimatedBackground';
+import { ChatOrganizationManager } from '../features/chats/chatOrganization';
+import { ContactNicknameRepository } from '../features/chats/contactNicknames';
+import { ChatLockManager } from '../features/chats/chatLock';
 
 type Hook = () => void | Promise<void>;
 const foregroundHooks: Hook[] = [];
@@ -84,6 +87,10 @@ export const WMApplication = {
     await UserSession.hydrate();
     await AccountManager.init().catch((e) => console.warn('[WMApplication] accounts:', e));
     if (UserSession.userId > 0) await setE2EEAccount(UserSession.userId);
+    // Папки/архив/теги списка чатов — свои у каждого аккаунта
+    ChatOrganizationManager.init();
+    ContactNicknameRepository.reload();
+    ChatLockManager.reload();
 
     // Тема и стиль интерфейса — до первого кадра (ThemeRepository/UIStylePreferences)
     ThemeManager.init();

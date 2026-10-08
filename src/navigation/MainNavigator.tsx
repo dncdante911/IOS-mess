@@ -1,11 +1,12 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { ChatsScreen } from '../screens/chats/ChatsScreen';
+import { ChatsHome } from '../features/chats/ChatsHome';
+import { ChannelRepliesScreen } from '../features/channels/ChannelRepliesScreen';
+import { AuthNavigator } from './AuthNavigator';
 import { CallsScreen } from '../screens/calls/CallsScreen';
 import { StoriesScreen } from '../screens/stories/StoriesScreen';
 import MessagesScreen from '../screens/messages/MessagesScreen';
@@ -17,9 +18,8 @@ import ThemeSettingsScreen from '../features/themeSettings/ThemeSettingsScreen';
 import UIStyleOnboardingScreen from '../features/onboarding/UIStyleOnboardingScreen';
 import { UIStylePreferences } from '../preferences/uiStyle';
 import { useTheme } from '../theme';
-import { useTranslation } from '../i18n';
-import type { MainTabParamList, RootStackParamList } from './types';
-import { useSandboxStore } from '../store/sandboxStore';
+import { useTranslation, type TranslationKeys } from '../i18n';
+import type { RootStackParamList } from './types';
 
 function PlaceholderScreen({ title }: { title: string }) {
   const theme = useTheme();
@@ -73,52 +73,32 @@ function VideoMessageFrameSettingsScreen() {
   return <PlaceholderScreen title={t('theme_cat_video_msg')} />;
 }
 
-const Tab = createBottomTabNavigator<MainTabParamList>();
+/** Заглушка с заголовком из параметров (экраны следующих фаз). */
+function ComingSoonScreen({ route }: { route: { params: { title: string } } }) {
+  return <PlaceholderScreen title={route.params.title} />;
+}
 
-type FeatherIconName = React.ComponentProps<typeof Feather>['name'];
+/** Экраны бокового меню, которые портируются в своих фазах. */
+function titled(key: TranslationKeys) {
+  return function Titled() {
+    const { t } = useTranslation();
+    return <PlaceholderScreen title={t(key)} />;
+  };
+}
+const NewsListScreen = titled('news_nav_label');
+const RecommendedChannelsScreen = titled('recommended_channels_title');
+const BotStoreScreen = titled('bot_store');
+const GeoDiscoveryScreen = titled('geo_discovery_title');
+const BusinessDirectoryScreen = titled('business_directory');
+const StarsScreen = titled('stars_title');
+const AdsScreen = titled('ads_title');
+const RefundsScreen = titled('refunds_title');
+const TicketsScreen = titled('ticket_screen_title');
+const DraftsScreen = titled('drafts');
 
-const TAB_ICONS: Record<keyof MainTabParamList, FeatherIconName> = {
-  Chats: 'message-circle',
-  Calls: 'phone',
-  Stories: 'aperture',
-  Settings: 'settings',
-};
-
-function TabNavigator() {
-  const theme = useTheme();
-  const { t } = useTranslation();
-  const sandboxEnabled = useSandboxStore((s) => s.isEnabled);
-
-  return (
-    <Tab.Navigator
-      screenOptions={({ route }) => ({
-        headerShown: false,
-        tabBarIcon: ({ color, size }) => (
-          <Feather name={TAB_ICONS[route.name]} size={size} color={color} />
-        ),
-        tabBarActiveTintColor: theme.primary,
-        tabBarInactiveTintColor: theme.textTertiary,
-        tabBarStyle: sandboxEnabled
-          ? { display: 'none' }
-          : {
-              backgroundColor: theme.tabBar,
-              borderTopWidth: 0,
-              shadowOpacity: 0,
-              elevation: 0,
-            },
-        tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: '500',
-          marginBottom: 2,
-        },
-      })}
-    >
-      <Tab.Screen name="Chats" component={ChatsScreen} options={{ tabBarLabel: t('chats') }} />
-      <Tab.Screen name="Calls" component={CallsScreen} options={{ tabBarLabel: t('calls') }} />
-      <Tab.Screen name="Stories" component={StoriesScreen} options={{ tabBarLabel: t('stories') }} />
-      <Tab.Screen name="Settings" component={SettingsScreen} options={{ tabBarLabel: t('settings') }} />
-    </Tab.Navigator>
-  );
+/** «Добавить аккаунт» — вход без сброса текущей сессии. */
+function AddAccountScreen() {
+  return <AuthNavigator initialRouteName="Login" />;
 }
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -131,7 +111,23 @@ export function MainNavigator() {
       initialRouteName={UIStylePreferences.hasSeenOnboarding() ? 'Main' : 'UIStyleOnboarding'}
     >
       <Stack.Screen name="UIStyleOnboarding" component={UIStyleOnboardingScreen} options={{ animation: 'fade' }} />
-      <Stack.Screen name="Main" component={TabNavigator} />
+      <Stack.Screen name="Main" component={ChatsHome} />
+      <Stack.Screen name="Settings" component={SettingsScreen as React.ComponentType} options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="CallHistory" component={CallsScreen as React.ComponentType} options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="Stories" component={StoriesScreen as React.ComponentType} options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="NewsList" component={NewsListScreen} options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="RecommendedChannels" component={RecommendedChannelsScreen} options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="BotStore" component={BotStoreScreen} options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="GeoDiscovery" component={GeoDiscoveryScreen} options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="BusinessDirectory" component={BusinessDirectoryScreen} options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="Stars" component={StarsScreen} options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="Ads" component={AdsScreen} options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="Refunds" component={RefundsScreen} options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="Tickets" component={TicketsScreen} options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="Drafts" component={DraftsScreen} options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="ChannelReplies" component={ChannelRepliesScreen} options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="AddAccount" component={AddAccountScreen} options={{ animation: 'slide_from_bottom' }} />
+      <Stack.Screen name="ComingSoon" component={ComingSoonScreen as React.ComponentType} options={{ animation: 'slide_from_right' }} />
       <Stack.Screen
         name="Messages"
         component={MessagesScreen}
